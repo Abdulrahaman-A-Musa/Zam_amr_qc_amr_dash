@@ -1,0 +1,21 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.env
+venv/
+.venv/
+
+# Data files — never commit survey data to GitHub
+*.csv
+*.xlsx
+*.xls
+
+# Editor / OS
+.DS_Store
+Thumbs.db
+*.vsix
+
+# Old copies
+*- Copy.*

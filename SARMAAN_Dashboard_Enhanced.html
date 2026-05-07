@@ -1,0 +1,3805 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SARMAAN Zamfara AMR - Unified Dashboard</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --navy:#0f2d5e;--blue:#1a5ca8;--blue-lt:#3b82f6;--teal:#0891b2;
+  --green:#16a34a;--green-lt:#22c55e;--amber:#d97706;--red:#dc2626;
+  --purple:#7c3aed;--bg:#f1f5f9;--surface:#fff;--border:#e2e8f0;
+  --text:#1e293b;--muted:#64748b;--radius:10px;
+}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--text);font-size:14px;min-height:100vh}
+
+/* LOGIN SCREEN */
+#loginScreen{
+  position:fixed;top:0;left:0;width:100%;height:100%;
+  background:linear-gradient(135deg,var(--navy),var(--blue),var(--teal));
+  display:flex;align-items:center;justify-content:center;z-index:9999;
+}
+.login-card{
+  background:#fff;border-radius:16px;padding:48px 42px;box-shadow:0 20px 60px rgba(0,0,0,.4);
+  max-width:420px;width:90%;animation:slideIn .4s ease-out;
+}
+@keyframes slideIn{from{opacity:0;transform:translateY(-30px)}to{opacity:1;transform:translateY(0)}}
+.login-logo{text-align:center;margin-bottom:24px}
+.login-logo h1{font-size:2rem;color:var(--navy);font-weight:900;letter-spacing:1px}
+.login-logo p{font-size:.85rem;color:var(--muted);margin-top:8px}
+.login-form label{display:block;font-weight:700;color:var(--navy);margin-bottom:6px;font-size:.88rem}
+.login-form input,.login-form select{
+  width:100%;padding:12px 14px;border-radius:8px;border:2px solid var(--border);
+  font-size:.92rem;margin-bottom:18px;transition:.2s;
+}
+.login-form input:focus,.login-form select:focus{outline:none;border-color:var(--blue-lt);box-shadow:0 0 0 4px rgba(59,130,246,.1)}
+.login-btn{
+  width:100%;padding:14px;border-radius:8px;border:none;
+  background:linear-gradient(120deg,var(--navy),var(--blue));
+  color:#fff;font-size:1rem;font-weight:700;cursor:pointer;transition:.2s;
+}
+.login-btn:hover{transform:translateY(-2px);box-shadow:0 8px 20px rgba(15,45,94,.3)}
+.login-btn:disabled{opacity:.6;cursor:not-allowed}
+.login-error{
+  background:#fee2e2;color:#b91c1c;padding:10px 14px;border-radius:8px;
+  margin-top:14px;font-size:.84rem;font-weight:600;display:none;
+}
+.login-info{
+  margin-top:20px;padding-top:20px;border-top:1px solid var(--border);
+  font-size:.78rem;color:var(--muted);line-height:1.6;
+}
+.login-info strong{color:var(--navy)}
+
+/* DASHBOARD (existing styles) */
+#dashboardScreen{display:none}
+header{background:linear-gradient(120deg,var(--navy),var(--blue));color:#fff;padding:16px 28px;display:flex;justify-content:space-between;align-items:center;box-shadow:0 2px 12px rgba(0,0,0,.25);flex-wrap:wrap;gap:10px}
+.hdr-left{display:flex;align-items:center;gap:14px}
+.hdr-badge{background:rgba(255,255,255,.22);border-radius:8px;padding:6px 12px;font-size:1.05rem;font-weight:900;letter-spacing:1px}
+header h1{font-size:1.3rem;font-weight:800}
+header p{font-size:.78rem;opacity:.78;margin-top:3px}
+.hdr-right{display:flex;flex-direction:column;align-items:flex-end;gap:8px}
+.header-pills{display:flex;gap:8px;flex-wrap:wrap}
+.header-pills span{background:rgba(255,255,255,.18);padding:4px 12px;border-radius:20px;font-size:.75rem;font-weight:600}
+.last-upd{font-size:.7rem;opacity:.72;background:rgba(255,255,255,.12);border-radius:12px;padding:3px 10px}
+.btn-logout{
+  background:rgba(220,38,38,.3);color:#fca5a5;border:none;padding:6px 14px;
+  border-radius:20px;font-size:.75rem;font-weight:600;cursor:pointer;transition:.15s;
+}
+.btn-logout:hover{background:rgba(220,38,38,.5)}
+
+/* UPLOAD TOAST */
+#uploadToast{
+  position:fixed;top:18px;left:50%;transform:translateX(-50%) translateY(-120px);
+  z-index:99999;min-width:320px;max-width:90vw;padding:14px 22px;
+  border-radius:10px;font-size:.88rem;font-weight:700;
+  box-shadow:0 8px 32px rgba(0,0,0,.35);
+  transition:transform .35s cubic-bezier(.34,1.56,.64,1);
+  display:flex;align-items:center;gap:12px;
+}
+#uploadToast.show{transform:translateX(-50%) translateY(0)}
+#uploadToast.toast-ok{background:#14532d;color:#86efac;border:1px solid #22c55e}
+#uploadToast.toast-err{background:#450a0a;color:#fca5a5;border:1px solid #ef4444}
+#uploadToast.toast-warn{background:#451a03;color:#fcd34d;border:1px solid #f59e0b}
+
+/* DATA SOURCE PANEL */
+.ds-wrapper{background:#1e3a5f;border-bottom:1px solid rgba(255,255,255,.08)}
+.ds-toggle{width:100%;background:none;border:none;color:rgba(255,255,255,.75);padding:9px 28px;text-align:left;cursor:pointer;font-size:.8rem;font-weight:600;display:flex;align-items:center;gap:8px;transition:.15s}
+.ds-toggle:hover{color:#fff;background:rgba(255,255,255,.06)}
+.ds-panel{padding:16px 28px 20px;border-top:1px solid rgba(255,255,255,.08)}
+.ds-grid{display:grid;grid-template-columns:2fr 1fr;gap:16px;margin-bottom:14px}
+.ds-field label{display:block;color:rgba(255,255,255,.6);font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px}
+.ds-field input{width:100%;padding:8px 12px;border-radius:6px;border:1px solid rgba(255,255,255,.2);background:rgba(255,255,255,.1);color:#fff;font-size:.82rem}
+.ds-field input::placeholder{color:rgba(255,255,255,.35)}
+.ds-field small{display:block;margin-top:5px;color:rgba(255,255,255,.45);font-size:.7rem}
+.token-row{display:flex;gap:6px}
+.token-row input{flex:1}
+.token-row button{padding:8px 12px;border-radius:6px;border:1px solid rgba(255,255,255,.2);background:rgba(255,255,255,.1);color:#fff;cursor:pointer;font-size:.8rem}
+.ds-actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.btn-fetch{padding:9px 20px;border-radius:6px;border:none;background:var(--green-lt);color:#fff;font-weight:700;font-size:.82rem;cursor:pointer;transition:.15s}
+.btn-fetch:hover{background:#16a34a}.btn-fetch:disabled{opacity:.55;cursor:default}
+.btn-save{padding:9px 16px;border-radius:6px;border:1px solid rgba(255,255,255,.3);background:transparent;color:rgba(255,255,255,.8);font-size:.8rem;cursor:pointer;transition:.15s}
+.btn-save:hover{background:rgba(255,255,255,.1)}
+.ds-status{margin-top:10px;font-size:.76rem;color:rgba(255,255,255,.55);padding:6px 10px;border-radius:6px;background:rgba(0,0,0,.15)}
+.auto-refresh-section{margin-top:14px;padding-top:14px;border-top:1px solid rgba(255,255,255,.15)}
+.auto-refresh-label{display:flex;align-items:center;gap:8px;color:rgba(255,255,255,.75);font-size:.8rem;cursor:pointer}
+.auto-refresh-label input[type="checkbox"]{width:18px;height:18px;cursor:pointer}
+.refresh-interval{margin-top:8px;display:flex;align-items:center;gap:8px}
+.refresh-interval select{
+  padding:6px 10px;border-radius:6px;border:1px solid rgba(255,255,255,.2);
+  background:rgba(255,255,255,.1);color:#fff;font-size:.8rem;cursor:pointer;
+}
+#csvDropZone.dz-over{background:rgba(34,197,94,.18)!important;border-color:rgba(134,239,172,.9)!important}
+
+/* MAIN */
+main{padding:22px 28px;max-width:1700px;margin:0 auto}
+
+/* PHASE TIMELINE */
+.phase-timeline{display:flex;align-items:center;margin-bottom:20px;background:var(--surface);border-radius:var(--radius);padding:16px 24px;box-shadow:0 1px 4px rgba(0,0,0,.07);overflow-x:auto}
+.phase-step{display:flex;flex-direction:column;align-items:center;gap:6px;min-width:90px}
+.phase-dot{width:20px;height:20px;border-radius:50%;border:3px solid var(--border);background:#fff;transition:.2s}
+.phase-step.done .phase-dot{background:var(--green-lt);border-color:var(--green)}
+.phase-step.active .phase-dot{background:var(--blue-lt);border-color:var(--blue);box-shadow:0 0 0 4px rgba(59,130,246,.2)}
+.phase-step.future .phase-dot{background:#e2e8f0;border-color:#cbd5e1}
+.phase-label{font-size:.72rem;font-weight:700;text-align:center;color:var(--muted);line-height:1.4}
+.phase-step.done .phase-label{color:var(--green)}
+.phase-step.active .phase-label{color:var(--blue)}
+.phase-line{flex:1;height:3px;background:var(--border);min-width:30px}
+.phase-line.done{background:var(--green)}
+
+/* BANNER */
+.banner{background:#eff6ff;border:1px solid #bfdbfe;border-left:4px solid var(--blue-lt);border-radius:8px;padding:10px 16px;margin-bottom:18px;font-size:.81rem;color:#1e40af;display:flex;align-items:flex-start;gap:10px;line-height:1.55}
+.banner-icon{font-size:1.1rem;margin-top:1px;flex-shrink:0}
+
+/* TOOLBAR */
+.toolbar{display:flex;align-items:center;gap:14px;margin-bottom:18px;flex-wrap:wrap;background:var(--surface);border-radius:var(--radius);padding:12px 18px;box-shadow:0 1px 4px rgba(0,0,0,.06)}
+.toolbar-section{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.toolbar-right{margin-left:auto}
+.toolbar-label{font-weight:700;color:var(--muted);font-size:.75rem;text-transform:uppercase;letter-spacing:.5px;white-space:nowrap}
+.btn-group{display:flex;gap:5px;flex-wrap:wrap}
+.btn{padding:6px 14px;border-radius:20px;border:2px solid var(--blue-lt);background:transparent;color:var(--blue-lt);cursor:pointer;font-size:.78rem;font-weight:600;transition:.15s;white-space:nowrap}
+.btn.active,.btn:hover{background:var(--blue-lt);color:#fff}
+.select-filter{padding:6px 10px;border-radius:20px;border:2px solid var(--blue-lt);color:var(--blue-lt);font-size:.78rem;font-weight:600;background:#fff;cursor:pointer;outline:none}
+.btn-dl-all{padding:7px 16px;border-radius:20px;border:none;background:var(--navy);color:#fff;font-size:.78rem;font-weight:700;cursor:pointer;transition:.15s;white-space:nowrap}
+.btn-dl-all:hover{background:var(--blue)}
+
+/* KPI STRIP */
+.kpi-strip{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:14px;margin-bottom:22px}
+.kpi{background:var(--surface);border-radius:var(--radius);padding:16px 18px;box-shadow:0 1px 4px rgba(0,0,0,.07);border-top:4px solid var(--blue-lt);transition:transform .15s,box-shadow .15s;cursor:default}
+.kpi:hover{transform:translateY(-2px);box-shadow:0 6px 20px rgba(0,0,0,.1)}
+.kpi.green{border-top-color:var(--green)}.kpi.amber{border-top-color:var(--amber)}.kpi.red{border-top-color:var(--red)}.kpi.teal{border-top-color:var(--teal)}.kpi.purple{border-top-color:var(--purple)}.kpi.navy{border-top-color:var(--navy)}
+.kpi-icon{font-size:1.4rem;margin-bottom:4px}
+.kpi-label{font-size:.67rem;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--muted)}
+.kpi-value{font-size:1.9rem;font-weight:900;color:var(--navy);line-height:1.1;margin:5px 0 3px}
+.kpi-sub{font-size:.68rem;color:var(--muted);line-height:1.4}
+
+/* CARD */
+.card{background:var(--surface);border-radius:var(--radius);padding:20px 22px;box-shadow:0 1px 4px rgba(0,0,0,.07);margin-bottom:22px}
+.card-title{font-size:.88rem;font-weight:800;color:var(--navy);margin-bottom:14px;padding-left:10px;border-left:4px solid var(--blue-lt);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px}
+
+/* GRIDS */
+.grid-2col{display:grid;grid-template-columns:3fr 2fr;gap:22px;margin-bottom:22px}
+.grid-1-2{display:grid;grid-template-columns:1fr 2fr;gap:22px;margin-bottom:22px}
+
+/* CHARTS */
+.chart-wrap{position:relative;height:260px}
+.chart-tall{height:340px}
+
+/* COMPLIANCE MATRIX */
+.matrix-wrap{overflow-x:auto}
+.matrix{width:100%;border-collapse:collapse;min-width:360px}
+.matrix th{background:var(--navy);color:#fff;padding:8px 12px;font-size:.76rem;text-align:center;white-space:nowrap}
+.matrix th:first-child{text-align:left}
+.matrix td{padding:7px 12px;border-bottom:1px solid var(--border);font-size:.79rem;text-align:center;vertical-align:middle}
+.matrix td:first-child{text-align:left;font-weight:700}
+.matrix tbody tr:hover td{background:#f8fafc}
+.pill-ok{display:inline-block;background:#dcfce7;color:#15803d;border-radius:12px;padding:2px 10px;font-size:.7rem;font-weight:700}
+.pill-no{display:inline-block;background:#fee2e2;color:#b91c1c;border-radius:12px;padding:2px 10px;font-size:.7rem;font-weight:700}
+.btn-lga-dl{padding:3px 9px;border-radius:6px;border:1px solid #cbd5e1;background:#f8fafc;color:var(--muted);font-size:.7rem;cursor:pointer;transition:.15s;white-space:nowrap}
+.btn-lga-dl:hover{background:var(--navy);color:#fff;border-color:var(--navy)}
+.legend-row{display:flex;gap:14px;margin-top:10px;font-size:.72rem;color:var(--muted)}
+.legend-item{display:flex;align-items:center;gap:5px}
+.swatch{display:inline-block;width:12px;height:12px;border-radius:3px}
+.swatch.green{background:#dcfce7;border:1px solid #86efac}
+.swatch.red{background:#fee2e2;border:1px solid #fca5a5}
+
+/* TABS */
+.tabs{display:flex;gap:4px;border-bottom:2px solid var(--border);margin-bottom:14px;flex-wrap:wrap}
+.tab{padding:8px 18px;border:none;background:none;cursor:pointer;font-size:.82rem;font-weight:600;color:var(--muted);border-bottom:2px solid transparent;margin-bottom:-2px;transition:.15s;white-space:nowrap}
+.tab.active{color:var(--blue-lt);border-bottom-color:var(--blue-lt)}
+.tab-content{display:none}.tab-content.active{display:block}
+
+/* DATA TABLE */
+.table-scroll{overflow-x:auto}
+.data-table{width:100%;border-collapse:collapse;font-size:.78rem;min-width:780px}
+.data-table thead tr{background:var(--navy)}
+.data-table th{padding:9px 11px;color:#fff;font-weight:700;text-align:left;white-space:nowrap}
+.data-table td{padding:8px 11px;border-bottom:1px solid var(--border);vertical-align:middle}
+.data-table tbody tr:nth-child(even){background:#f8fafc}
+.data-table tbody tr:hover{background:#eff6ff}
+.no-data{text-align:center;color:var(--muted);padding:28px 0;font-size:.85rem}
+
+/* BADGES */
+.badge{display:inline-block;border-radius:10px;padding:2px 8px;font-size:.68rem;font-weight:700;white-space:nowrap;margin:1px}
+.b-training{background:#dbeafe;color:#1d4ed8}
+.b-transit{background:#f3e8ff;color:#6d28d9}
+.b-field{background:#d1fae5;color:#065f46}
+.b-outside{background:#fee2e2;color:#991b1b}
+.b-inside{background:#dcfce7;color:#166534}
+.b-supervision{background:#fef9c3;color:#92400e}
+.b-stakeholder{background:#fce7f3;color:#9d174d}
+.b-data{background:#e0f2fe;color:#075985}
+.b-problem{background:#fef3c7;color:#78350f}
+.b-other{background:#f1f5f9;color:#475569}
+
+/* SPINNER */
+.spinner{display:inline-block;width:13px;height:13px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .6s linear infinite;vertical-align:middle;margin-right:5px}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* FOOTER */
+footer{text-align:center;padding:18px 28px;color:var(--muted);font-size:.74rem;border-top:1px solid var(--border);margin-top:8px}
+
+/* MAP CONTAINER */
+#mapContainer{width:100%;height:500px;border-radius:var(--radius);overflow:hidden;box-shadow:0 4px 12px rgba(0,0,0,.1);margin-bottom:22px;display:none}
+#mapContainer.show{display:block}
+.btn-toggle-map{padding:10px 20px;border-radius:8px;border:none;background:linear-gradient(120deg,var(--navy),var(--blue));color:#fff;font-size:.88rem;font-weight:700;cursor:pointer;transition:.2s;display:flex;align-items:center;gap:8px;margin-bottom:18px}
+.btn-toggle-map:hover{transform:translateY(-2px);box-shadow:0 6px 16px rgba(15,45,94,.3)}
+.btn-toggle-map .icon{font-size:1.2rem}
+.leaflet-popup-content{font-size:.82rem;line-height:1.5}
+.leaflet-popup-content strong{color:var(--navy)}
+.map-legend{background:rgba(255,255,255,.95);padding:12px 16px;border-radius:8px;box-shadow:0 2px 8px rgba(0,0,0,.15);font-size:.78rem}
+.map-legend-title{font-weight:700;color:var(--navy);margin-bottom:8px;font-size:.84rem}
+.legend-item{display:flex;align-items:center;gap:8px;margin:4px 0}
+.legend-dot{width:12px;height:12px;border-radius:50%;border:2px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,.3)}
+.leaflet-control-layers{background:rgba(255,255,255,.95);border-radius:8px;padding:10px}
+.leaflet-control-layers-expanded{padding:8px 10px}
+
+/* QC DASHBOARD SECTION */
+#qcDashboard{display:none}
+.qc-metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;margin-bottom:24px}
+.qc-metric-card{background:linear-gradient(135deg,#fff 0%,#f8fafc 100%);padding:20px;border-radius:12px;border-left:5px solid var(--blue);box-shadow:0 2px 8px rgba(0,0,0,.06);transition:.3s}
+.qc-metric-card:hover{transform:translateY(-3px);box-shadow:0 6px 16px rgba(0,0,0,.12)}
+.qc-metric-value{font-size:2.5rem;font-weight:800;color:var(--navy);margin:8px 0}
+.qc-metric-label{font-size:.75rem;color:#64748b;font-weight:600;text-transform:uppercase;letter-spacing:.5px}
+
+/* PROJECT SELECTOR */
+.project-selector{margin-bottom:20px}
+.project-tabs{display:flex;gap:8px;background:var(--surface);border-radius:var(--radius);padding:8px;box-shadow:0 1px 4px rgba(0,0,0,.06)}
+.project-tab{flex:1;padding:12px 20px;border-radius:6px;border:none;background:transparent;color:var(--muted);font-weight:700;font-size:.88rem;cursor:pointer;transition:.2s}
+.project-tab.active{background:linear-gradient(120deg,var(--navy),var(--blue));color:#fff;box-shadow:0 4px 12px rgba(15,45,94,.2)}
+.project-tab:hover:not(.active){background:rgba(15,45,94,.05)}
+
+/* LGA REPORT CARD MODAL - Patient Folder Style */
+#lgaReportModal{
+  display:none;position:fixed;top:0;left:0;width:100%;height:100%;
+  background:rgba(0,0,0,.65);z-index:10000;overflow-y:auto;
+  animation:fadeIn .3s ease-out;
+}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+
+.report-folder{
+  max-width:900px;margin:40px auto;background:#fff;
+  border-radius:12px;box-shadow:0 20px 60px rgba(0,0,0,.4);
+  overflow:hidden;animation:slideUp .4s ease-out;
+  position:relative;
+}
+@keyframes slideUp{from{opacity:0;transform:translateY(40px)}to{opacity:1;transform:translateY(0)}}
+
+/* Folder Tab Design */
+.folder-tab{
+  background:linear-gradient(135deg,var(--navy),var(--blue));
+  padding:24px 32px 20px;position:relative;
+  border-bottom:4px solid var(--amber);
+}
+.folder-tab::before{
+  content:'';position:absolute;top:0;left:40px;
+  width:180px;height:6px;background:var(--amber);
+  border-radius:0 0 8px 8px;
+}
+.folder-header{display:flex;justify-content:space-between;align-items:flex-start;color:#fff}
+.folder-title h2{font-size:1.8rem;font-weight:900;margin-bottom:4px;letter-spacing:.5px}
+.folder-title p{font-size:.88rem;opacity:.85}
+.folder-meta{text-align:right}
+.folder-meta .meta-label{font-size:.72rem;opacity:.75;text-transform:uppercase;letter-spacing:.8px}
+.folder-meta .meta-value{font-size:1.1rem;font-weight:800;margin-top:2px}
+.btn-close-modal{
+  position:absolute;top:16px;right:20px;background:rgba(255,255,255,.2);
+  border:none;color:#fff;width:36px;height:36px;border-radius:50%;
+  font-size:1.4rem;cursor:pointer;transition:.2s;display:flex;align-items:center;justify-content:center;
+}
+.btn-close-modal:hover{background:rgba(255,255,255,.3);transform:rotate(90deg)}
+
+/* Folder Content */
+.folder-content{padding:28px 32px 32px}
+
+/* Info Cards Grid */
+.info-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px;margin-bottom:24px}
+.info-card{
+  background:linear-gradient(135deg,#f8fafc,#fff);
+  border:2px solid var(--border);border-radius:10px;padding:16px;
+  transition:.2s;
+}
+.info-card:hover{border-color:var(--blue-lt);box-shadow:0 4px 12px rgba(59,130,246,.15);transform:translateY(-2px)}
+.info-card-label{font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);margin-bottom:6px}
+.info-card-value{font-size:1.6rem;font-weight:900;color:var(--navy);line-height:1.2}
+.info-card-sub{font-size:.75rem;color:var(--muted);margin-top:4px}
+.info-card.highlight{background:linear-gradient(135deg,#dbeafe,#eff6ff);border-color:var(--blue-lt)}
+.info-card.highlight .info-card-value{color:var(--blue)}
+.info-card.success{background:linear-gradient(135deg,#dcfce7,#f0fdf4);border-color:var(--green)}
+.info-card.success .info-card-value{color:var(--green)}
+.info-card.warning{background:linear-gradient(135deg,#fef3c7,#fffbeb);border-color:var(--amber)}
+.info-card.warning .info-card-value{color:var(--amber)}
+.info-card.danger{background:linear-gradient(135deg,#fee2e2,#fef2f2);border-color:var(--red)}
+.info-card.danger .info-card-value{color:var(--red)}
+
+/* Section Headers */
+.section-header{
+  display:flex;align-items:center;gap:10px;
+  margin:24px 0 14px;padding-bottom:8px;
+  border-bottom:2px solid var(--border);
+}
+.section-icon{font-size:1.3rem}
+.section-title{font-size:1.05rem;font-weight:800;color:var(--navy);flex:1}
+.section-badge{
+  background:var(--blue-lt);color:#fff;padding:3px 12px;
+  border-radius:20px;font-size:.72rem;font-weight:700;
+}
+
+/* Report Timeline */
+.report-timeline{margin-bottom:24px}
+.timeline-item{
+  display:flex;gap:16px;padding:14px;margin-bottom:10px;
+  background:#f8fafc;border-radius:8px;border-left:4px solid var(--blue-lt);
+  transition:.2s;
+}
+.timeline-item:hover{background:#eff6ff;box-shadow:0 2px 8px rgba(0,0,0,.08)}
+.timeline-date{
+  min-width:90px;text-align:center;
+  background:#fff;border-radius:6px;padding:8px;
+  border:1px solid var(--border);
+}
+.timeline-date .day{font-size:1.4rem;font-weight:900;color:var(--navy);line-height:1}
+.timeline-date .month{font-size:.7rem;font-weight:700;text-transform:uppercase;color:var(--muted);margin-top:2px}
+.timeline-content{flex:1}
+.timeline-title{font-size:.88rem;font-weight:700;color:var(--navy);margin-bottom:6px}
+.timeline-details{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:6px}
+.timeline-reason{font-size:.8rem;color:var(--muted);line-height:1.5;font-style:italic}
+
+/* Activity Stats */
+.activity-stats{
+  display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));
+  gap:10px;margin-bottom:24px;
+}
+.activity-stat{
+  background:#f1f5f9;border-radius:8px;padding:12px;text-align:center;
+  border:2px solid transparent;transition:.2s;
+}
+.activity-stat:hover{border-color:var(--blue-lt);background:#eff6ff}
+.activity-stat-icon{font-size:1.5rem;margin-bottom:4px}
+.activity-stat-label{font-size:.7rem;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.4px}
+.activity-stat-value{font-size:1.2rem;font-weight:900;color:var(--navy);margin-top:2px}
+
+/* Issues Alert Box */
+.issues-box{
+  background:#fef2f2;border:2px solid #fca5a5;border-radius:10px;
+  padding:16px 20px;margin-bottom:20px;
+}
+.issues-box.no-issues{background:#f0fdf4;border-color:#86efac}
+.issues-header{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.issues-icon{font-size:1.4rem}
+.issues-title{font-size:1rem;font-weight:800;color:#991b1b;flex:1}
+.issues-box.no-issues .issues-title{color:#15803d}
+.issue-item{
+  background:#fff;border-radius:6px;padding:10px 12px;margin-bottom:8px;
+  border-left:3px solid #dc2626;
+}
+.issue-item:last-child{margin-bottom:0}
+.issue-type{font-size:.75rem;font-weight:700;color:#991b1b;text-transform:uppercase;letter-spacing:.5px}
+.issue-desc{font-size:.82rem;color:#475569;margin-top:4px;line-height:1.5}
+
+/* Download Section */
+.download-section{
+  background:linear-gradient(135deg,#eff6ff,#dbeafe);
+  border:2px dashed var(--blue-lt);border-radius:10px;
+  padding:20px;text-align:center;
+}
+.download-section h3{font-size:1.05rem;color:var(--navy);font-weight:800;margin-bottom:8px}
+.download-section p{font-size:.82rem;color:var(--muted);margin-bottom:14px}
+.btn-download-report{
+  padding:12px 32px;border-radius:8px;border:none;
+  background:linear-gradient(120deg,var(--navy),var(--blue));
+  color:#fff;font-size:.92rem;font-weight:700;cursor:pointer;
+  transition:.2s;display:inline-flex;align-items:center;gap:8px;
+}
+.btn-download-report:hover{transform:translateY(-2px);box-shadow:0 8px 20px rgba(15,45,94,.3)}
+
+/* RESPONSIVE */
+@media(max-width:980px){
+  .grid-2col,.grid-1-2{grid-template-columns:1fr}
+  .ds-grid{grid-template-columns:1fr}
+  main{padding:14px}
+  header{padding:12px 14px}
+  .toolbar-right{margin-left:0}
+  .report-folder{margin:20px 10px;max-width:calc(100% - 20px)}
+  .folder-tab{padding:20px 16px 16px}
+  .folder-content{padding:20px 16px 24px}
+  .folder-header{flex-direction:column;gap:12px}
+  .folder-meta{text-align:left}
+  .info-cards{grid-template-columns:1fr}
+  .timeline-item{flex-direction:column;gap:12px}
+  .timeline-date{min-width:auto}
+}
+</style>
+</head>
+<body>
+
+<!-- LOGIN SCREEN -->
+<div id="loginScreen">
+  <div class="login-card">
+    <div class="login-logo">
+      <h1>SARMAAN</h1>
+      <p>LC Supervisory Dashboard – Zamfara AMR 2026</p>
+    </div>
+    <form class="login-form" onsubmit="handleLogin(event)">
+      <label for="username">Username / LGA Name</label>
+      <input type="text" id="username" placeholder="Enter LGA name or 'admin' for full access" required autocomplete="username" list="lgaSuggestions">
+      
+      <datalist id="lgaSuggestions">
+        <option value="admin">
+        <option value="Zurmi">
+        <option value="Bakura">
+        <option value="Birnin Magaji">
+        <option value="Gusau">
+        <option value="Kaura Namoda">
+        <option value="Talata Mafara">
+        <option value="Gummi">
+        <option value="Tsafe">
+        <option value="Shinkafi">
+        <option value="Maradun">
+        <option value="Bukkuyum">
+        <option value="Maru">
+      </datalist>
+      
+      <label for="projectSelect">Select Project</label>
+      <select id="projectSelect" required>
+        <option value="">-- Choose Project --</option>
+        <option value="lc_supervisory">LC Supervisory Dashboard</option>
+        <option value="qc_monitoring">QC Monitoring Page</option>
+      </select>
+      
+      <button type="submit" class="login-btn">Sign In</button>
+      
+      <div class="login-error" id="loginError">Please select a valid LGA and project.</div>
+      
+      <div class="login-info">
+        <strong>Quick Login:</strong><br>
+        • <strong>LGA Coordinators:</strong> Enter your LGA name (e.g., Zurmi, Bakura, Gusau)<br>
+        • <strong>Administrators:</strong> Enter "admin" for full dashboard access<br>
+        • <strong>Project:</strong> Select either LC Supervisory Dashboard or QC Monitoring Page<br>
+        <br>
+        <small style="opacity:.75">Valid LGAs: Zurmi, Bakura, Birnin Magaji, Gusau, Kaura Namoda, Talata Mafara, Gummi, Tsafe, Shinkafi, Maradun, Bukkuyum, Maru</small>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- DASHBOARD SCREEN -->
+<div id="dashboardScreen">
+
+<!-- PROJECT SELECTOR -->
+<div class="project-selector" style="padding:20px 28px 0;max-width:1700px;margin:0 auto">
+  <div class="project-tabs">
+    <button class="project-tab active" onclick="switchProject('lc_supervisory')">
+      📊 LC Supervisory Dashboard
+    </button>
+    <button class="project-tab" onclick="switchProject('qc_monitoring')">
+      🔍 QC Monitoring Page
+    </button>
+  </div>
+</div>
+
+<!-- LC SUPERVISORY CONTENT -->
+<div id="lcSupervisory">
+
+<!-- HEADER -->
+<header>
+  <div class="hdr-left">
+    <div class="hdr-badge">SARMAAN</div>
+    <div>
+      <h1>LC Supervisory Dashboard <span id="lgaTitle"></span></h1>
+      <p>LGA Coordinator Daily Field Reports &middot; Zamfara State &middot; AMR Survey 2026</p>
+    </div>
+  </div>
+  <div class="hdr-right">
+    <div class="header-pills">
+      <span>&#128202; AMR Survey</span>
+      <span>&#128205; Zamfara (ZA)</span>
+      <span id="hdrLGACount">&#128506; 12 LGAs</span>
+      <span id="hdrDateRange">2 &ndash; 5 May 2026</span>
+      <span id="liveDataPill" style="display:none;background:rgba(34,197,94,.25);color:#86efac;border:1px solid rgba(34,197,94,.4);cursor:default"></span>
+      <button class="btn-logout" onclick="handleLogout()">&#128682; Logout</button>
+    </div>
+    <div class="last-upd" id="lastUpdated">Using embedded demo data</div>
+  </div>
+</header>
+
+<!-- DATA SOURCE PANEL -->
+<div class="ds-wrapper">
+  <button class="ds-toggle" onclick="toggleDS()" id="dsToggle">
+    &#9881; &nbsp;Data Source: KoboToolbox Live API &nbsp;&nbsp;<span id="dsArrow">&#9660;</span>
+  </button>
+  <div class="ds-panel" id="dsPanel" style="display:none">
+
+    <!-- METHOD 1: AUTO-FETCH FROM KOBOTOOLBOX (XLSX) -->
+    <div style="background:rgba(59,130,246,.14);border:1px solid rgba(59,130,246,.4);border-radius:8px;padding:14px;margin-bottom:14px">
+      <div style="color:#93c5fd;font-size:.85rem;font-weight:700;margin-bottom:8px">⚡ Auto-Fetch: KoboToolbox Excel Export (Always Up-to-date)</div>
+      <div style="color:rgba(255,255,255,.65);font-size:.75rem;margin-bottom:10px;line-height:1.5">
+        Fetches the latest submission data directly from KoboToolbox using the public export link.
+      </div>
+      <button class="btn-fetch" id="fetchXlsxBtn" onclick="fetchKoboXLSX()" style="width:100%;padding:10px;font-size:.88rem;border-radius:7px">
+        ↻ Fetch Latest Data from KoboToolbox
+      </button>
+    </div>
+
+    <!-- METHOD 2: FILE DROP (CSV or XLSX) -->
+    <div style="background:rgba(34,197,94,.12);border:1px solid rgba(34,197,94,.3);border-radius:8px;padding:14px;margin-bottom:14px">
+      <div style="color:#86efac;font-size:.85rem;font-weight:700;margin-bottom:8px">📂 Manual Upload: Drop CSV or Excel File</div>
+      <div id="csvDropZone"
+        ondragover="event.preventDefault();this.classList.add('dz-over')"
+        ondragleave="this.classList.remove('dz-over')"
+        ondrop="handleFileDrop(event)"
+        style="border:2px dashed rgba(134,239,172,.5);border-radius:8px;padding:20px;text-align:center;cursor:pointer;transition:.2s"
+        onclick="document.getElementById('csvFileInput').click()">
+        <div style="font-size:2rem;margin-bottom:6px">📁</div>
+        <div style="color:rgba(255,255,255,.85);font-size:.82rem;font-weight:600">Drop file here or click to browse</div>
+        <div style="color:rgba(255,255,255,.45);font-size:.72rem;margin-top:4px">Accepts .xlsx or .csv files from KoboToolbox exports</div>
+        <input type="file" id="csvFileInput" accept=".csv,.xlsx,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" style="display:none" onchange="handleFileSelect(event)">
+      </div>
+    </div>
+
+    <!-- COLUMN OVERRIDES (shown when auto-detection fails) -->
+    <div style="background:rgba(251,191,36,.1);border:1px solid rgba(251,191,36,.3);border-radius:8px;padding:14px;margin-bottom:14px">
+      <div style="color:rgba(251,191,36,1);font-size:.85rem;font-weight:700;margin-bottom:6px">⚙ Column Name Overrides <small style="font-weight:400;opacity:.75">(only needed if LGA column not auto-detected)</small></div>
+      <div style="color:rgba(255,255,255,.65);font-size:.76rem;margin-bottom:10px;line-height:1.5">
+        If the LGA column shows "NOT FOUND", check the column names printed in the error, copy the exact LGA column name, and paste it below.
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <div>
+          <label style="display:block;color:rgba(255,255,255,.6);font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">LGA Column Name</label>
+          <input type="text" id="overrideLGA" placeholder="e.g. auth_lc_lgalabel"
+            style="width:100%;padding:7px 10px;border-radius:6px;border:1px solid rgba(255,255,255,.2);background:rgba(255,255,255,.1);color:#fff;font-size:.8rem" />
+        </div>
+        <div>
+          <label style="display:block;color:rgba(255,255,255,.6);font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">Date Column Name</label>
+          <input type="text" id="overrideDate" placeholder="e.g. today"
+            style="width:100%;padding:7px 10px;border-radius:6px;border:1px solid rgba(255,255,255,.2);background:rgba(255,255,255,.1);color:#fff;font-size:.8rem" />
+        </div>
+      </div>
+      <button onclick="saveOverrides()" style="margin-top:10px;padding:7px 16px;border-radius:6px;border:none;background:rgba(251,191,36,.3);color:#fef3c7;font-size:.8rem;font-weight:700;cursor:pointer">
+        💾 Save Overrides &amp; Reload File
+      </button>
+    </div>
+
+    <div class="auto-refresh-section">
+      <label class="auto-refresh-label">
+        <input type="checkbox" id="autoRefreshCheck" onchange="toggleAutoRefresh()">
+        <span>🔄 Auto-refresh (re-loads from URL on schedule)</span>
+      </label>
+      <div class="refresh-interval">
+        <span style="color:rgba(255,255,255,.6);font-size:.76rem">Every:</span>
+        <select id="refreshInterval" onchange="updateRefreshInterval()">
+          <option value="1">1 min</option>
+          <option value="5" selected>5 min</option>
+          <option value="10">10 min</option>
+          <option value="15">15 min</option>
+          <option value="30">30 min</option>
+          <option value="60">1 hour</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="ds-status" id="dsStatus">
+      ℹ️ Using embedded demo data. Load a CSV file above to see live data.
+    </div>
+  </div>
+</div>
+
+<!-- UPLOAD RESULT TOAST (always visible, floats above page) -->
+<div id="uploadToast" role="alert"></div>
+
+<!-- MAIN -->
+<main>
+
+  <!-- Phase Timeline -->
+  <div class="phase-timeline">
+    <div class="phase-step done">
+      <div class="phase-dot"></div>
+      <div class="phase-label">May 2<br><small>ToT &middot; Kano EOC</small></div>
+    </div>
+    <div class="phase-line done"></div>
+    <div class="phase-step done">
+      <div class="phase-dot"></div>
+      <div class="phase-label">May 4<br><small>Transit (Kano&rarr;ZA)</small></div>
+    </div>
+    <div class="phase-line done"></div>
+    <div class="phase-step active">
+      <div class="phase-dot"></div>
+      <div class="phase-label">May 5<br><small>Deploy Training</small></div>
+    </div>
+    <div class="phase-line"></div>
+    <div class="phase-step future">
+      <div class="phase-dot"></div>
+      <div class="phase-label">May 6+<br><small>Field Work</small></div>
+    </div>
+  </div>
+
+  <!-- Context Banner -->
+  <div class="banner" id="contextBanner">
+    <span class="banner-icon">&#9432;</span>
+    <div id="bannerText">
+      <strong>Phase Context:</strong>&nbsp;
+      <strong>May 2</strong> = Training of Trainers (ToT) at Abdullahi Wase Specialist Hospital, Kano EOC &nbsp;|&nbsp;
+      <strong>May 4</strong> = Transit day &mdash; all LCs travelling from Kano to Zamfara &nbsp;|&nbsp;
+      <strong>May 5</strong> = Deployment-site preparation and training at Gusau EOC.
+      &nbsp;<strong>Being outside the assigned LGA is expected and authorised during this entire pre-field phase.</strong>
+    </div>
+  </div>
+
+  <!-- Toolbar -->
+  <div class="toolbar">
+    <div class="toolbar-section">
+      <span class="toolbar-label">Date</span>
+      <div class="btn-group" id="dateFilterGroup">
+        <button class="btn active" onclick="setDateFilter('all',this)">All Days</button>
+      </div>
+    </div>
+    <div class="toolbar-section" id="lgaFilterSection">
+      <span class="toolbar-label">LGA</span>
+      <select id="lgaFilter" class="select-filter" onchange="setLGAFilter(this.value)">
+        <option value="all">All LGAs</option>
+      </select>
+    </div>
+    <div class="toolbar-section toolbar-right">
+      <button class="btn-dl-all" onclick="downloadAllCSV()">&#11015; Download Reports</button>
+    </div>
+  </div>
+
+  <!-- KPI Strip -->
+  <div class="kpi-strip" id="kpiStrip"></div>
+
+  <!-- Row 1: Compliance Matrix + Submissions Chart -->
+  <div class="grid-2col">
+    <div class="card" id="matrixCard">
+      <div class="card-title">
+        Submission Compliance Matrix
+        <span style="font-size:.7rem;font-weight:500;color:var(--muted)">Click &#128229; to download that LGA&rsquo;s report</span>
+      </div>
+      <div class="matrix-wrap" id="matrixWrap"></div>
+      <div class="legend-row">
+        <span class="legend-item"><span class="swatch green"></span>Submitted</span>
+        <span class="legend-item"><span class="swatch red"></span>Not Submitted</span>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">Daily Submissions vs Expected</div>
+      <div class="chart-wrap"><canvas id="submissionsChart"></canvas></div>
+    </div>
+  </div>
+
+  <!-- Field Visit Locations Map -->
+  <button class="btn-toggle-map" onclick="toggleMap()">
+    <span class="icon">🗺️</span>
+    <span id="mapBtnText">Show Field Visit Locations Map</span>
+  </button>
+  <div id="mapContainer"></div>
+
+  <!-- Row 2: Activity Donut + Distance Bar -->
+  <div class="grid-1-2">
+    <div class="card">
+      <div class="card-title">Activity Type Breakdown</div>
+      <div class="chart-wrap"><canvas id="activityChart"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Distance from Assigned LGA &mdash; by LGA &amp; Date (km)</div>
+      <div class="chart-wrap chart-tall"><canvas id="distanceChart"></canvas></div>
+    </div>
+  </div>
+
+  <!-- Detail Tables -->
+  <div class="card">
+    <div class="card-title">Report Detail Log</div>
+    <div class="tabs">
+      <button class="tab active" onclick="showTab('tab-all',this)">All Reports</button>
+      <button class="tab" onclick="showTab('tab-loc',this)">Outside LGA &mdash; Reasons</button>
+      <button class="tab" onclick="showTab('tab-issues',this)">Device &amp; Security Issues</button>
+    </div>
+
+    <div id="tab-all" class="tab-content active">
+      <div class="table-scroll">
+        <table class="data-table">
+          <thead><tr>
+            <th>Date</th><th>LGA</th><th>Time</th><th>Survey</th>
+            <th>Activities Carried Out</th>
+            <th>Location Status</th><th>Distance (km)</th>
+            <th>Wards</th><th>Settlements</th><th>HHs Visited</th>
+            <th>Device Issues</th><th>Security</th>
+          </tr></thead>
+          <tbody id="bodyAll"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div id="tab-loc" class="tab-content">
+      <div class="table-scroll">
+        <table class="data-table">
+          <thead><tr>
+            <th>Date</th><th>LGA</th><th>Time</th>
+            <th>Location</th><th>Distance (km)</th>
+            <th>Reason for Being Outside Assigned LGA</th>
+          </tr></thead>
+          <tbody id="bodyLoc"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div id="tab-issues" class="tab-content">
+      <div class="table-scroll">
+        <table class="data-table">
+          <thead><tr>
+            <th>Date</th><th>LGA</th><th>Time</th>
+            <th>Device Issue</th><th>Security Incident</th><th>Notes / Description</th>
+          </tr></thead>
+          <tbody id="bodyIssues"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<footer>
+  SARMAAN Supervisory Dashboard &middot; eHA / NIMR &middot; Zamfara State AMR Survey 2026 &middot;
+  <span id="footerNote">Showing embedded demo data</span> &middot;
+  <span id="loginUserInfo"></span>
+</footer>
+
+</div>
+<!-- END LC SUPERVISORY -->
+
+<!-- QC MONITORING DASHBOARD -->
+<div id="qcDashboard">
+
+<!-- HEADER -->
+<header>
+  <div class="hdr-left">
+    <div class="hdr-badge">SARMAAN</div>
+    <div>
+      <h1>QC Monitoring Dashboard <span id="qcLgaTitle"></span></h1>
+      <p>Quality Control & Data Validation &middot; Zamfara State &middot; AMR Survey 2026</p>
+    </div>
+  </div>
+  <div class="hdr-right">
+    <div class="header-pills">
+      <span>&#128202; AMR Survey</span>
+      <span>&#128205; Zamfara (ZA)</span>
+      <span id="qcHdrLGACount">&#128506; 14 LGAs</span>
+      <button class="btn-logout" onclick="handleLogout()">&#128682; Logout</button>
+    </div>
+    <div class="last-upd" id="qcLastUpdated">Click button below to load QC data</div>
+  </div>
+</header>
+
+<!-- QC DATA SOURCE PANEL -->
+<div class="ds-wrapper">
+  <div class="ds-panel" style="display:block;border-top:none">
+    <div style="margin-bottom:14px">
+      <label style="display:block;color:rgba(255,255,255,.75);font-size:.82rem;font-weight:600;margin-bottom:8px">
+        📊 QC Data Source - KoboToolbox Export
+      </label>
+      <p style="color:rgba(255,255,255,.55);font-size:.76rem;line-height:1.5;margin-bottom:12px">
+        This section fetches household-level quality control data from the SARMAAN AMR survey. The Excel file is fetched automatically through the proxy server.
+      </p>
+    </div>
+    
+    <div class="ds-actions">
+      <button class="btn-fetch" id="qcFetchBtn" onclick="fetchQCData()">
+        ↻ Load QC Data from KoboToolbox
+      </button>
+    </div>
+    
+    <div class="ds-status" id="qcStatus" style="margin-top:12px">
+      Ready to load QC data. Click the button above to fetch from KoboToolbox.
+    </div>
+  </div>
+</div>
+
+<main>
+
+  <!-- QC DATA PREVIEW -->
+  <div class="card">
+    <div class="card-title">&#128202; Quality Control Data Preview</div>
+    <div id="qcDataPreview" style="padding:40px;text-align:center;color:var(--muted)">
+      <h3>QC Monitoring Dashboard</h3>
+      <p style="margin-top:12px;line-height:1.6">
+        Click "Load QC Data from KoboToolbox" above to fetch and display:<br><br>
+        ✓ Household submissions by LGA<br>
+        ✓ Data completeness metrics<br>
+        ✓ GPS coordinate validation<br>
+        ✓ Quality control flags<br>
+        ✓ Missing data detection<br><br>
+        <strong>Data Source:</strong> SARMAAN II AMR Case Report Form (All Versions)
+      </p>
+    </div>
+  </div>
+
+</main>
+
+<footer>
+  SARMAAN QC Dashboard &middot; eHA / NIMR &middot; Zamfara State AMR Survey 2026 &middot;
+  <span id="qcFooterNote">Quality Control Monitoring</span> &middot;
+  <span id="qcLoginUserInfo"></span>
+</footer>
+
+</div>
+<!-- END QC DASHBOARD -->
+
+</div>
+<!-- END DASHBOARD SCREEN -->
+
+<!-- LGA REPORT CARD MODAL -->
+<div id="lgaReportModal" onclick="closeReportModal(event)">
+  <div class="report-folder" onclick="event.stopPropagation()">
+    <!-- Folder Tab Header -->
+    <div class="folder-tab">
+      <button class="btn-close-modal" onclick="closeReportModal()">&times;</button>
+      <div class="folder-header">
+        <div class="folder-title">
+          <h2 id="modalLGAName">LGA Report Card</h2>
+          <p>📍 Zamfara State AMR Survey 2026 · Field Coordinator Report</p>
+        </div>
+        <div class="folder-meta">
+          <div class="meta-label">Report Period</div>
+          <div class="meta-value" id="modalReportPeriod">May 2-5, 2026</div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Folder Content -->
+    <div class="folder-content">
+      
+      <!-- Phase Context Narrative -->
+      <div class="banner" style="margin-bottom:24px">
+        <span class="banner-icon">&#9432;</span>
+        <div id="modalNarrative">
+          <strong>Phase Context:</strong>&nbsp;
+          <strong>May 2</strong> = Training of Trainers (ToT) at Abdullahi Wase Specialist Hospital, Kano EOC &nbsp;|&nbsp;
+          <strong>May 4</strong> = Transit day — all LCs travelling from Kano to Zamfara &nbsp;|&nbsp;
+          <strong>May 5</strong> = Deployment-site preparation and training at Gusau EOC.
+          &nbsp;<strong>Being outside the assigned LGA is expected and authorised during this entire pre-field phase.</strong>
+        </div>
+      </div>
+      
+      <!-- Quick Stats Grid -->
+      <div class="info-cards" id="modalInfoCards"></div>
+      
+      <!-- Activity Breakdown -->
+      <div class="section-header">
+        <span class="section-icon">📊</span>
+        <h3 class="section-title">Activity Breakdown</h3>
+        <span class="section-badge" id="modalActivityCount">0 Days</span>
+      </div>
+      <div class="activity-stats" id="modalActivityStats"></div>
+      
+      <!-- Daily Reports Timeline -->
+      <div class="section-header">
+        <span class="section-icon">📅</span>
+        <h3 class="section-title">Daily Field Reports</h3>
+      </div>
+      <div class="report-timeline" id="modalTimeline"></div>
+      
+      <!-- Issues & Incidents -->
+      <div class="section-header">
+        <span class="section-icon">⚠️</span>
+        <h3 class="section-title">Issues & Incidents</h3>
+      </div>
+      <div id="modalIssues"></div>
+      
+      <!-- Download Section -->
+      <div class="download-section">
+        <h3>📥 Download Complete Report</h3>
+        <p>Export all field data for this LGA as a CSV file for further analysis</p>
+        <button class="btn-download-report" id="modalDownloadBtn">
+          <span>⬇</span>
+          <span>Download CSV Report</span>
+        </button>
+      </div>
+      
+    </div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════
+// CONSTANTS
+// ═══════════════════════════════════════════════════════
+const ALL_LGAS = [
+  'Zurmi','Bakura','Birnin Magaji','Gusau','Kaura Namoda',
+  'Talata Mafara','Gummi','Tsafe','Shinkafi','Maradun','Bukkuyum','Maru'
+];
+const DL = {
+  '2026-05-02':'May 2','2026-05-04':'May 4','2026-05-05':'May 5'
+};
+const DL_FULL = {
+  '2026-05-02':'May 2 · ToT (Kano EOC)',
+  '2026-05-04':'May 4 · Transit',
+  '2026-05-05':'May 5 · Deploy Training'
+};
+const BADGE_MAP = {
+  'Training':'b-training','Transit':'b-transit',
+  'Field Coordination':'b-field','Supervision & QA':'b-supervision',
+  'Stakeholder Engagement':'b-stakeholder','Data Monitoring':'b-data',
+  'Problem Solving':'b-problem','Team Management':'b-field','Logistics':'b-other'
+};
+const CHART_REG = {};
+
+// ═══════════════════════════════════════════════════════
+// EMBEDDED DEMO RECORDS
+// ═══════════════════════════════════════════════════════
+const DEMO_RECORDS = [
+  {date:'2026-05-02',lga:'Zurmi',         time:'09:15',survey:'AMR',acts:['Training','Field Coordination','Supervision & QA'],loc:'Outside LGA',dist:209.92,reason:'Training day at EOC in Kano State',wards:0,settle:0,hh:0,dev:0,sec:false,devNote:'',secNote:'',latitude:11.9937,longitude:8.5171},
+  {date:'2026-05-02',lga:'Bakura',        time:'09:19',survey:'AMR',acts:['Training'],loc:'Outside LGA',dist:312.48,reason:'Training of Trainers venue in Kano for the SARMAAN activity',wards:null,settle:null,hh:null,dev:0,sec:false,devNote:'',secNote:'',latitude:11.9937,longitude:8.5171},
+  {date:'2026-05-02',lga:'Birnin Magaji', time:'09:30',survey:'AMR',acts:['Training'],loc:'Outside LGA',dist:180.47,reason:'Not in LGA — ToT at Kano EOC; DCs equipped with devices and role-plays completed',wards:null,settle:null,hh:null,dev:0,sec:false,devNote:'',secNote:'',latitude:11.9937,longitude:8.5171},
+  {date:'2026-05-02',lga:'Gusau',         time:'09:30',survey:'AMR',acts:['Training'],loc:'Outside LGA',dist:208.60,reason:'Day 1 of Training of Trainers in Kano State — LGACs trained by NIMR team on AMR survey form',wards:null,settle:null,hh:null,dev:0,sec:false,devNote:'',secNote:'',latitude:11.9937,longitude:8.5171},
+  {date:'2026-05-02',lga:'Kaura Namoda',  time:'09:30',survey:'AMR',acts:['Training'],loc:'Outside LGA',dist:202.01,reason:'At Abdullahi Wase Specialist Hospital, Nasarawa LGA, Kano — 2-day ToT',wards:null,settle:null,hh:null,dev:0,sec:false,devNote:'',secNote:'',latitude:11.9937,longitude:8.5171},
+  {date:'2026-05-02',lga:'Talata Mafara', time:'09:18',survey:'AMR',acts:['Training'],loc:'Outside LGA',dist:268.77,reason:'At EOC, Abdullahi Wase Specialist Hospital — ToT training at Kano',wards:null,settle:null,hh:null,dev:0,sec:false,devNote:'',secNote:'',latitude:11.9937,longitude:8.5171},
+  {date:'2026-05-02',lga:'Gummi',         time:'09:17',survey:'AMR',acts:['Training'],loc:'Outside LGA',dist:355.80,reason:'Training day at Kano EOC — arrival of NIMR team, eHA team, LCs; SARMAAN project overview',wards:null,settle:null,hh:null,dev:0,sec:false,devNote:'',secNote:'',latitude:11.9937,longitude:8.5171},
+  {date:'2026-05-02',lga:'Tsafe',         time:'09:22',survey:'AMR',acts:['Field Coordination'],loc:'Outside LGA',dist:184.15,reason:'Training at EOC, Abdullahi Wase Specialist Hospital, Nassarawa LGA — field coordination overview',wards:0,settle:0,hh:0,dev:0,sec:false,devNote:'',secNote:'',latitude:11.9937,longitude:8.5171},
+  {date:'2026-05-02',lga:'Shinkafi',      time:'09:32',survey:'AMR',acts:['Training'],loc:'Outside LGA',dist:260.42,reason:'Training at Kano EOC',wards:null,settle:null,hh:null,dev:0,sec:false,devNote:'',secNote:'',latitude:11.9937,longitude:8.5171},
+  {date:'2026-05-02',lga:'Maradun',       time:'09:42',survey:'AMR',acts:['Training'],loc:'Outside LGA',dist:232.83,reason:'In Kano for ToT — familiarised with modifications on the AMR survey form',wards:null,settle:null,hh:null,dev:0,sec:false,devNote:'',secNote:'',latitude:11.9937,longitude:8.5171},
+  {date:'2026-05-02',lga:'Bukkuyum',      time:'18:31',survey:'AMR',acts:['Training'],loc:'Outside LGA',dist:301.12,reason:'ToT program at Kano EOC — CFR & Kobo AMR data collections, data validation training',wards:null,settle:null,hh:null,dev:0,sec:false,devNote:'',secNote:'',latitude:11.9937,longitude:8.5171},
+  {date:'2026-05-04',lga:'Zurmi',         time:'07:41',survey:'AMR',acts:['Transit'],loc:'Outside LGA',dist:200.36,reason:'Transit from Kano to Zamfara',wards:null,settle:null,hh:null,dev:0,sec:false,devNote:'',secNote:'',latitude:12.8500,longitude:7.2833},
+  {date:'2026-05-04',lga:'Kaura Namoda',  time:'07:57',survey:'AMR',acts:['Transit'],loc:'Outside LGA',dist:191.92,reason:'On transit to Zamfara state',wards:null,settle:null,hh:null,dev:0,sec:false,devNote:'',secNote:'',latitude:12.5833,longitude:6.8333},
+  {date:'2026-05-04',lga:'Maradun',       time:'07:57',survey:'AMR',acts:['Transit'],loc:'Outside LGA',dist:222.74,reason:'Arrival day — LCs moving from Kano to Zamfara for AMR baseline',wards:null,settle:null,hh:null,dev:0,sec:false,devNote:'',secNote:'',latitude:12.3500,longitude:6.3500},
+  {date:'2026-05-04',lga:'Birnin Magaji', time:'08:00',survey:'AMR',acts:['Transit'],loc:'Outside LGA',dist:170.48,reason:'Travel Day — in transit to Zamfara deployment site',wards:null,settle:null,hh:null,dev:0,sec:false,devNote:'',secNote:'',latitude:12.5500,longitude:6.8500},
+  {date:'2026-05-04',lga:'Gusau',         time:'08:10',survey:'AMR',acts:['Transit'],loc:'Outside LGA',dist:197.35,reason:'On transit from Kano to Gusau, Zamfara',wards:null,settle:null,hh:null,dev:0,sec:false,devNote:'',secNote:'',latitude:12.1704,longitude:6.6599},
+  {date:'2026-05-04',lga:'Tsafe',         time:'08:12',survey:'AMR',acts:['Transit'],loc:'Outside LGA',dist:172.97,reason:'On transit from Kano to Zamfara — obtained Zamfara State mass transit',wards:null,settle:null,hh:null,dev:0,sec:false,devNote:'',secNote:'',latitude:11.9500,longitude:6.9167},
+  {date:'2026-05-04',lga:'Bakura',        time:'08:03',survey:'AMR',acts:['Transit'],loc:'Outside LGA',dist:301.90,reason:'On transit to state of deployment — departure day from Kano',wards:null,settle:null,hh:null,dev:0,sec:false,devNote:'',secNote:'',latitude:12.4667,longitude:5.8667},
+  {date:'2026-05-04',lga:'Talata Mafara', time:'08:17',survey:'AMR',acts:['Transit'],loc:'Outside LGA',dist:258.50,reason:'On transit to Zamfara — at Rijia Zaki park in Kano awaiting departure',wards:null,settle:null,hh:null,dev:0,sec:false,devNote:'',secNote:'',latitude:12.5500,longitude:6.0667},
+  {date:'2026-05-04',lga:'Bukkuyum',      time:'08:20',survey:'AMR',acts:['Transit'],loc:'Outside LGA',dist:290.14,reason:'Journey from Kano to Gusau after ToT program at Kano EOC',wards:null,settle:null,hh:null,dev:0,sec:false,devNote:'',secNote:'',latitude:12.0833,longitude:5.9500},
+  {date:'2026-05-04',lga:'Gummi',         time:'08:27',survey:'AMR',acts:['Transit'],loc:'Outside LGA',dist:344.98,reason:'All LCs deployed to Zamfara state after completion of ToT in Kano',wards:null,settle:null,hh:null,dev:0,sec:false,devNote:'',secNote:'',latitude:12.1500,longitude:5.7167},
+  {date:'2026-05-04',lga:'Maru',          time:'18:52',survey:'AMR',acts:['Transit'],loc:'Outside LGA',dist:128.18,reason:'On transit — app gave issues when taking GPS coordinates',wards:null,settle:null,hh:null,dev:1,sec:false,devNote:'App GPS capture issue when taking coordinates',secNote:'',latitude:12.3333,longitude:6.4000},
+  {date:'2026-05-05',lga:'Kaura Namoda',  time:'17:03',survey:'AMR',acts:['Training'],loc:'Outside LGA',dist:27.32,reason:'On Training Ground at Gusau EOC',wards:null,settle:null,hh:null,dev:0,sec:false,devNote:'',secNote:'',latitude:12.5950,longitude:6.8450},
+  {date:'2026-05-05',lga:'Gummi',         time:'17:06',survey:'AMR',acts:['Training'],loc:'Outside LGA',dist:149.50,reason:'At Gusau EOC — preparations for AMR training activity and design of work plan',wards:null,settle:null,hh:null,dev:0,sec:false,devNote:'',secNote:'',latitude:12.1704,longitude:6.6599},
+];
+
+// ═══════════════════════════════════════════════════════
+// AUTH STATE
+// ═══════════════════════════════════════════════════════
+let currentUser = null;
+let userRole = null; // 'admin' or 'lga'
+let autoRefreshTimer = null;
+
+// ═══════════════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════════════
+let records   = [...DEMO_RECORDS];
+let activeDates = ['all'];
+let activeLGA   = 'all';
+let COLUMN_MAP  = null; // populated after first CSV load
+
+function filtered() {
+  const lgaLower = activeLGA === 'all' ? null : activeLGA.toLowerCase();
+  return records.filter(r => {
+    const dateOK = activeDates[0] === 'all' || activeDates.includes(r.date);
+    const lgaOK  = !lgaLower || r.lga.toLowerCase() === lgaLower;
+    return dateOK && lgaOK;
+  });
+}
+function allDates() {
+  return [...new Set(records.map(r => r.date))].sort();
+}
+
+// Normalize a raw LGA value from CSV to match the canonical ALL_LGAS spelling.
+// e.g. "zurmi", "ZURMI", "zurmi lga" → "Zurmi"
+function normalizeLGA(raw) {
+  const clean = String(raw || '').trim().replace(/_/g, ' ');
+  if (!clean) return null;
+  // Try exact case-insensitive match against known LGAs
+  const exact = ALL_LGAS.find(l => l.toLowerCase() === clean.toLowerCase());
+  if (exact) return exact;
+  // Try if any known LGA is contained in the raw value
+  const partial = ALL_LGAS.find(l => clean.toLowerCase().includes(l.toLowerCase()));
+  if (partial) return partial;
+  // Fallback: title-case each word
+  return clean.split(/\s+/).map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
+}
+
+// ═══════════════════════════════════════════════════════
+// LOGIN / AUTH
+// ═══════════════════════════════════════════════════════
+let selectedProject = 'lc_supervisory'; // Default project
+
+function handleLogin(event) {
+  event.preventDefault();
+  
+  const username = document.getElementById('username').value.trim();
+  const project = document.getElementById('projectSelect').value;
+  const errorDiv = document.getElementById('loginError');
+  
+  // Validate project selection
+  if (!project) {
+    errorDiv.textContent = 'Please select a project.';
+    errorDiv.style.display = 'block';
+    return;
+  }
+  
+  // Check if admin
+  if (username.toLowerCase() === 'admin') {
+    currentUser = 'admin';
+    userRole = 'admin';
+    activeLGA = 'all';
+  }
+  // Check if valid LGA
+  else {
+    const lgaMatch = ALL_LGAS.find(lga => lga.toLowerCase() === username.toLowerCase());
+    if (lgaMatch) {
+      currentUser = lgaMatch;
+      userRole = 'lga';
+      activeLGA = lgaMatch;
+    } else {
+      errorDiv.textContent = 'Invalid username. Please enter a valid LGA name or "admin".';
+      errorDiv.style.display = 'block';
+      return;
+    }
+  }
+  
+  // Save session
+  selectedProject = project;
+  sessionStorage.setItem('sarmaan_user', currentUser);
+  sessionStorage.setItem('sarmaan_role', userRole);
+  sessionStorage.setItem('sarmaan_project', project);
+  
+  // Show dashboard
+  document.getElementById('loginScreen').style.display = 'none';
+  document.getElementById('dashboardScreen').style.display = 'block';
+  
+  // Show selected project
+  switchProject(project);
+  initializeDashboard();
+}
+
+function handleLogout() {
+  sessionStorage.removeItem('sarmaan_user');
+  sessionStorage.removeItem('sarmaan_role');
+  sessionStorage.removeItem('sarmaan_project');
+  currentUser = null;
+  userRole = null;
+  activeLGA = 'all';
+  selectedProject = 'lc_supervisory';
+  
+  // Stop auto-refresh
+  if (autoRefreshTimer) {
+    clearInterval(autoRefreshTimer);
+    autoRefreshTimer = null;
+  }
+  
+  // Reset form
+  document.getElementById('username').value = '';
+  document.getElementById('projectSelect').value = '';
+  document.getElementById('loginError').style.display = 'none';
+  
+  // Show login screen
+  document.getElementById('dashboardScreen').style.display = 'none';
+  document.getElementById('loginScreen').style.display = 'flex';
+}
+
+function checkAuth() {
+  const savedUser = sessionStorage.getItem('sarmaan_user');
+  const savedRole = sessionStorage.getItem('sarmaan_role');
+  const savedProject = sessionStorage.getItem('sarmaan_project') || 'lc_supervisory';
+  
+  if (savedUser && savedRole) {
+    currentUser = savedUser;
+    userRole = savedRole;
+    selectedProject = savedProject;
+    if (userRole === 'lga') {
+      activeLGA = currentUser;
+    }
+    document.getElementById('loginScreen').style.display = 'none';
+    document.getElementById('dashboardScreen').style.display = 'block';
+    switchProject(savedProject);
+    initializeDashboard();
+  }
+}
+
+function switchProject(projectId) {
+  selectedProject = projectId;
+  sessionStorage.setItem('sarmaan_project', projectId);
+  
+  // Update tab styling
+  const tabs = document.querySelectorAll('.project-tab');
+  tabs.forEach(tab => {
+    tab.classList.remove('active');
+  });
+  
+  // Show/hide project sections
+  if (projectId === 'lc_supervisory') {
+    document.getElementById('lcSupervisory').style.display = 'block';
+    document.getElementById('qcDashboard').style.display = 'none';
+    tabs[0].classList.add('active');
+    
+    // Reset map visibility
+    mapVisible = false;
+    document.getElementById('mapContainer').classList.remove('show');
+    document.getElementById('mapBtnText').textContent = 'Show Field Visit Locations Map';
+    
+    // Auto-load LC data (uses cache if fresh, fetches if stale)
+    setTimeout(function() { autoFetchLC(); }, 300);
+  } else if (projectId === 'qc_monitoring') {
+    document.getElementById('lcSupervisory').style.display = 'none';
+    document.getElementById('qcDashboard').style.display = 'block';
+    tabs[1].classList.add('active');
+
+    // Update QC dashboard user info
+    updateQCMetrics({
+      totalHouseholds: 0,
+      totalChildren: 0,
+      totalMothers: 0,
+      qualityFlags: 0
+    });
+
+    // Auto-load QC data (uses cache if fresh, fetches if stale)
+    setTimeout(function() { autoFetchQC(); }, 300);
+  }
+}
+
+function initializeDashboard() {
+  // Restore LC live data from localStorage (survives page refresh without re-uploading)
+  var cachedRaw    = localStorage.getItem('kobo_records_cache');
+  var cachedSource = localStorage.getItem('kobo_records_source');
+  var cachedTime   = localStorage.getItem('kobo_records_time');
+  if (cachedRaw) {
+    try {
+      var cachedParsed = JSON.parse(cachedRaw);
+      if (Array.isArray(cachedParsed) && cachedParsed.length > 0) {
+        records = cachedParsed;
+        updateLiveDataPill(cachedParsed.length, cachedSource || 'cached file');
+        var timeLabel = cachedTime ? new Date(parseInt(cachedTime, 10)).toLocaleString() : '';
+        var dsStatus = document.getElementById('dsStatus');
+        if (dsStatus) dsStatus.innerHTML =
+          '<strong style="color:#22c55e">✓ Using saved data:</strong> ' + cachedParsed.length +
+          ' records from <em>' + (cachedSource || 'file') + '</em>' +
+          (timeLabel ? ' — loaded ' + timeLabel : '') +
+          '<br><small style="color:rgba(255,255,255,.55)">Click "↻ Fetch Latest Data" to refresh.</small>';
+      }
+    } catch(e) {
+      localStorage.removeItem('kobo_records_cache'); // corrupt cache — remove it
+    }
+  }
+
+  // Restore QC data from localStorage cache
+  var cachedQCRaw  = localStorage.getItem('qc_data_cache');
+  var cachedQCTime = localStorage.getItem('qc_data_time');
+  if (cachedQCRaw) {
+    try {
+      var cachedQCParsed = JSON.parse(cachedQCRaw);
+      if (Array.isArray(cachedQCParsed) && cachedQCParsed.length > 0) {
+        qcData = cachedQCParsed;
+      }
+    } catch(e) {
+      localStorage.removeItem('qc_data_cache');
+    }
+  }
+
+  // Auto-load data based on selected project
+  if (selectedProject === 'lc_supervisory') {
+    setTimeout(function() { autoFetchLC(); }, 500);
+  } else if (selectedProject === 'qc_monitoring') {
+    setTimeout(function() { autoFetchQC(); }, 500);
+  }
+
+  // Update header
+  if (userRole === 'admin') {
+    document.getElementById('lgaTitle').textContent = '';
+    document.getElementById('hdrLGACount').textContent = '📍 12 LGAs';
+    document.getElementById('loginUserInfo').textContent = 'Logged in as: Administrator';
+    document.getElementById('lgaFilterSection').style.display = 'flex';
+    document.getElementById('matrixCard').style.display = 'block';
+  } else {
+    document.getElementById('lgaTitle').textContent = `– ${currentUser}`;
+    document.getElementById('hdrLGACount').textContent = `📍 ${currentUser} LGA`;
+    document.getElementById('loginUserInfo').textContent = `Logged in as: ${currentUser} Coordinator`;
+    document.getElementById('lgaFilterSection').style.display = 'none';
+    document.getElementById('matrixCard').style.display = 'none';
+  }
+  
+  // Update banner
+  if (userRole === 'lga') {
+    document.getElementById('bannerText').innerHTML =
+      `<strong>${currentUser} LGA Report View:</strong> You are viewing data specific to your LGA. ` +
+      `This dashboard shows your daily field reports, activities, and compliance status.`;
+  }
+  
+  rebuildDateButtons();
+  rebuildLGAFilter();
+  renderAll();
+}
+
+// ═══════════════════════════════════════════════════════
+// DATA SOURCE PANEL
+// ═══════════════════════════════════════════════════════
+function toggleDS() {
+  var p = document.getElementById('dsPanel');
+  var open = p.style.display !== 'none';
+  p.style.display = open ? 'none' : 'block';
+  document.getElementById('dsArrow').textContent = open ? '▼' : '▲';
+}
+function saveDS() {
+  var url = document.getElementById('koboUrl').value.trim();
+  if (url) localStorage.setItem('kobo_url', url);
+  document.getElementById('dsStatus').textContent = '✓ URL saved in your browser.';
+}
+function saveOverrides() {
+  const lgaCol  = document.getElementById('overrideLGA').value.trim();
+  const dateCol = document.getElementById('overrideDate').value.trim();
+  if (lgaCol)  localStorage.setItem('col_override_lga',  lgaCol);
+  if (dateCol) localStorage.setItem('col_override_date', dateCol);
+  // Re-process the last loaded CSV with new overrides
+  if (_lastCSVText) {
+    processCSVText(_lastCSVText, _lastCSVSource || 'file');
+  } else {
+    document.getElementById('dsStatus').textContent =
+      '✓ Overrides saved. Drop your CSV file again to apply them.';
+  }
+}
+
+// ── FILE DROP / FILE PICKER ──────────────────────────────
+function handleFileDrop(event) {
+  event.preventDefault();
+  document.getElementById('csvDropZone').classList.remove('dz-over');
+  const file = event.dataTransfer.files[0];
+  if (file) loadCSVFile(file);
+}
+function handleFileSelect(event) {
+  const file = event.target.files[0];
+  if (file) loadCSVFile(file);
+  event.target.value = ''; // reset so same file can be re-selected
+}
+function loadCSVFile(file) {
+  const name = file.name.toLowerCase();
+  document.getElementById('dsStatus').textContent = 'Reading file: ' + file.name + '…';
+
+  if (name.endsWith('.xlsx') || name.endsWith('.xls') ||
+      file.type.includes('spreadsheet') || file.type.includes('excel')) {
+    // Excel file — parse with SheetJS
+    const reader = new FileReader();
+    reader.onload = function(e) { processXLSXBuffer(e.target.result, file.name); };
+    reader.onerror = function() { document.getElementById('dsStatus').textContent = '✗ Could not read file.'; };
+    reader.readAsArrayBuffer(file);
+  } else {
+    // CSV / text file
+    const reader = new FileReader();
+    reader.onload = function(e) { processCSVText(e.target.result, file.name); };
+    reader.onerror = function() { document.getElementById('dsStatus').textContent = '✗ Could not read file.'; };
+    reader.readAsText(file, 'UTF-8');
+  }
+}
+
+// Store last loaded data so overrides can re-process without re-uploading
+let _lastCSVText    = null;
+let _lastCSVSource  = null;
+let _lastXLSXBuffer = null;
+
+// ─────────────────────────────────────────────────────────
+// SMART CACHE UTILITIES
+// ─────────────────────────────────────────────────────────
+var CACHE_MAX_AGE_MS = 60 * 60 * 1000; // 1 hour
+
+function cacheIsStale(timeKey, maxAgeMs) {
+  var t = localStorage.getItem(timeKey);
+  if (!t) return true;
+  return (Date.now() - parseInt(t, 10)) > (maxAgeMs || CACHE_MAX_AGE_MS);
+}
+
+// Auto-fetch LC data: skip if in-memory data is fresh, otherwise fetch silently
+function autoFetchLC(force) {
+  if (!force && records.length > 0 && !cacheIsStale('kobo_records_time')) {
+    return; // already have fresh data in memory
+  }
+  fetchKoboXLSX(true);
+}
+
+// Auto-fetch QC data: restore from localStorage cache if fresh, otherwise fetch
+function autoFetchQC(force) {
+  if (!force && !cacheIsStale('qc_data_time')) {
+    var cachedQC = localStorage.getItem('qc_data_cache');
+    if (cachedQC) {
+      try {
+        var parsed = JSON.parse(cachedQC);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          qcData = parsed;
+          processQCData(qcData);
+          var qcStatus = document.getElementById('qcStatus');
+          if (qcStatus) {
+            var t = localStorage.getItem('qc_data_time');
+            qcStatus.innerHTML = '<strong style="color:#22c55e">✓ Using cached data:</strong> ' +
+              parsed.length + ' records — fetched ' + (t ? new Date(parseInt(t,10)).toLocaleString() : '') +
+              '<br><small>Click "↻ Load QC Data" to refresh.</small>';
+          }
+          var lastUpd = document.getElementById('qcLastUpdated');
+          if (lastUpd) lastUpd.textContent = 'From cache · ' + new Date(parseInt(localStorage.getItem('qc_data_time'),10)).toLocaleTimeString();
+          return;
+        }
+      } catch(e) { localStorage.removeItem('qc_data_cache'); }
+    }
+  }
+  fetchQCData(true);
+}
+
+// ─────────────────────────────────────────────────────────
+// SHARED ROW PROCESSING  (used by both CSV and XLSX paths)
+// csvRows = array of plain objects {colName: value, …}
+// totalInputRows = total rows before any filtering (for reporting)
+// ─────────────────────────────────────────────────────────
+function processRowObjects(csvRows, totalInputRows, sourceName) {
+  if (!csvRows.length) {
+    document.getElementById('dsStatus').innerHTML =
+      '<strong style="color:#ef4444">✗ Error:</strong> No data rows found in the file.';
+    return;
+  }
+
+  try {
+  const headers = Object.keys(csvRows[0]);
+  COLUMN_MAP = detectColumnMap(headers);
+
+    // Strip KoboToolbox "include labels" export rows.
+    // Label rows have descriptive text in 'starttime' (starts with a letter, e.g.
+    // "Ensured DCs had Android devices…"). Real submissions have an ISO timestamp
+    // there (starts with a digit, e.g. "2026-04-28T08:30:00").
+    // Also accept rows identified by KoboToolbox system columns (_id / _uuid / _submission_time)
+    // or by having a populated LGA field — so rows with empty starttime still get through.
+    const dataRows = csvRows.filter(function(row) {
+      // KoboToolbox system identifiers (may be absent from this export)
+      if (String(row['_id']               || '').trim()) return true;
+      if (String(row['_submission_time']  || '').trim()) return true;
+      if (String(row['_uuid']             || '').trim()) return true;
+
+      // starttime: timestamps begin with a digit; label descriptions begin with a letter
+      var st = String(row['starttime'] || '').trim();
+      if (st) return /^\d/.test(st);   // non-empty → trust the first character
+
+      // starttime is empty — fall back to LGA or date presence
+      if (String(row['active_lga']         || '').trim()) return true;
+      if (String(row['auth_lc_lgalabel']   || '').trim()) return true;
+      if (String(row['auth_lc_lganame']    || '').trim()) return true;
+      if (parseAnyDate(String(row['today']          || ''))) return true;
+      if (parseAnyDate(String(row['Date of Report'] || ''))) return true;
+      return false;  // looks like a label row with no useful data
+    });
+
+    console.log('SARMAAN label-row filter: kept', dataRows.length, 'of', csvRows.length, 'rows');
+    if (dataRows.length > 0) {
+      console.log('First kept row starttime:', dataRows[0]['starttime'], '| active_lga:', dataRows[0]['active_lga'], '| today:', dataRows[0]['today'], '| Date of Report:', dataRows[0]['Date of Report']);
+    }
+
+    const parsed = dataRows.map(parseKoboRecord).filter(Boolean);
+
+    if (!parsed.length) {
+      console.group('SARMAAN: 0 records parsed — full diagnostic');
+      console.log('Total rows:', totalInputRows, '| After label-row filter:', dataRows.length);
+      console.log('Headers (' + headers.length + '):', headers);
+      console.log('Row 1:', csvRows[0]);
+      if (csvRows[1]) console.log('Row 2:', csvRows[1]);
+      console.groupEnd();
+
+      var previewRows = (dataRows.length ? dataRows : csvRows).slice(0, 3);
+      var rowTableRows = headers.map(function(h) {
+        var vals = previewRows.map(function(row){ return String(row[h] || '').substring(0,80); });
+        if (!vals.some(function(v){ return v.trim(); })) return '';
+        var hl = h.toLowerCase().includes('lga') ? 'background:rgba(34,197,94,.18);' :
+                 (h.toLowerCase().includes('date')||h==='today'||h.toLowerCase().includes('time')||h.toLowerCase().includes('submission'))
+                   ? 'background:rgba(59,130,246,.18);' : '';
+        return '<tr style="' + hl + '">' +
+          '<td style="padding:3px 8px;color:#86efac;font-size:.7rem;white-space:nowrap;max-width:200px;overflow:hidden;border-bottom:1px solid rgba(255,255,255,.06)">' + h.substring(0,60) + '</td>' +
+          vals.map(function(v){
+            return '<td style="padding:3px 8px;color:#e2e8f0;font-size:.7rem;border-bottom:1px solid rgba(255,255,255,.06)">' +
+              (v.trim() ? v : '<span style="color:#475569">—</span>') + '</td>';
+          }).join('') + '</tr>';
+      }).filter(Boolean).join('');
+
+      document.getElementById('dsStatus').innerHTML =
+        '<strong style="color:#f59e0b">⚠ ' + totalInputRows + ' rows read (' + dataRows.length + ' after label-row filter), 0 parsed.</strong> ' +
+        '<strong style="color:#fff">Press F12 → Console for details.</strong><br><br>' +
+        '<strong style="color:rgba(255,255,255,.8)">Non-empty columns (first 3 rows) — green=LGA, blue=date:</strong>' +
+        '<div style="max-height:220px;overflow-y:auto;background:rgba(0,0,0,.3);border-radius:6px;margin-top:5px">' +
+          '<table style="width:100%;border-collapse:collapse">' +
+            '<thead><tr style="background:rgba(0,0,0,.3)">' +
+              '<th style="padding:4px 8px;color:#94a3b8;font-size:.68rem;text-align:left">Column</th>' +
+              '<th style="padding:4px 8px;color:#94a3b8;font-size:.68rem">Row 1</th>' +
+              '<th style="padding:4px 8px;color:#94a3b8;font-size:.68rem">Row 2</th>' +
+              '<th style="padding:4px 8px;color:#94a3b8;font-size:.68rem">Row 3</th>' +
+            '</tr></thead>' +
+            '<tbody>' + (rowTableRows || '<tr><td colspan="4" style="padding:8px;color:#94a3b8;text-align:center">All columns empty in first 3 rows</td></tr>') + '</tbody>' +
+          '</table>' +
+        '</div>';
+
+      showToast('⚠️ 0 records — panel opened. Press F12 → Console for full details', 'warn', 12000);
+      const panel = document.getElementById('dsPanel');
+      if (panel.style.display === 'none') {
+        panel.style.display = 'block';
+        document.getElementById('dsArrow').textContent = '▲';
+      }
+      return;
+    }
+
+    records = parsed;
+
+    try {
+      localStorage.setItem('kobo_records_cache', JSON.stringify(parsed));
+      localStorage.setItem('kobo_records_source', sourceName);
+      localStorage.setItem('kobo_records_time', new Date().toISOString());
+    } catch(storageErr) { /* quota exceeded — non-fatal */ }
+
+    const now = new Date().toISOString();
+    localStorage.setItem('kobo_last_fetch', now);
+
+    document.getElementById('lastUpdated').textContent = 'Loaded · ' + new Date(now).toLocaleTimeString();
+    document.getElementById('footerNote').textContent =
+      'Loaded from: ' + sourceName + ' · ' + parsed.length + ' records · ' + new Date(now).toLocaleString();
+
+    var labelRowsSkipped = totalInputRows - dataRows.length;
+    document.getElementById('dsStatus').innerHTML =
+      '<strong style="color:#22c55e">✓ Loaded ' + parsed.length + ' records</strong>' +
+      ' from ' + totalInputRows + ' rows (' + sourceName + ')' +
+      (labelRowsSkipped > 0
+        ? ' · <em style="color:rgba(255,255,255,.45)">' + labelRowsSkipped + ' label row(s) skipped</em>'
+        : '') +
+      (dataRows.length - parsed.length > 0
+        ? ' · <em style="color:rgba(255,255,255,.55)">' + (dataRows.length - parsed.length) + ' skipped (no LGA/date)</em>'
+        : '') +
+      showColumnMappingReport(COLUMN_MAP, headers);
+
+    updateLiveDataPill(parsed.length, sourceName);
+    showToast('✅ ' + parsed.length + ' records loaded from <em>' + sourceName + '</em> — dashboard updated!', 'ok', 7000);
+
+    rebuildDateButtons();
+    rebuildLGAFilter();
+    renderAll();
+
+  } catch(err) {
+    document.getElementById('dsStatus').innerHTML =
+      '<strong style="color:#ef4444">✗ Processing Error:</strong> ' + String(err.message || err) +
+      '<br><small style="color:rgba(255,255,255,.5)">Open browser console (F12 → Console) for full details.</small>';
+    showToast('❌ Error: ' + String(err.message || err), 'err', 10000);
+    console.error('processRowObjects error:', err);
+    const panel = document.getElementById('dsPanel');
+    if (panel.style.display === 'none') {
+      panel.style.display = 'block';
+      document.getElementById('dsArrow').textContent = '▲';
+    }
+  }
+}
+
+// Thin CSV wrapper — parses text then delegates to processRowObjects
+function processCSVText(csvText, sourceName) {
+  _lastCSVText   = csvText;
+  _lastCSVSource = sourceName;
+  window._csvRawLines = csvText.split(/\r?\n/).filter(function(l){ return l.trim(); });
+  try {
+    const csvRows = parseCSV(csvText);
+    processRowObjects(csvRows, csvRows.length, sourceName);
+  } catch(err) {
+    document.getElementById('dsStatus').innerHTML =
+      '<strong style="color:#ef4444">✗ Parse Error:</strong> ' + String(err.message || err);
+    showToast('❌ CSV parse error: ' + String(err.message || err), 'err', 10000);
+    console.error('processCSVText error:', err);
+  }
+}
+
+// ─────────────────────────────────────────────────────────
+// XLSX PROCESSING  (SheetJS)
+// ─────────────────────────────────────────────────────────
+var KOBO_XLSX_URL = 'https://kf.kobotoolbox.org/api/v2/assets/ahdDePjwfyqm54j2Y6ovzW/export-settings/esvZDrAQQps5Y7VyoPHDHSm/data.xlsx';
+
+function processXLSXBuffer(arrayBuffer, sourceName) {
+  _lastXLSXBuffer = arrayBuffer;
+  try {
+    if (typeof XLSX === 'undefined') {
+      showToast('❌ SheetJS library not loaded. Check your internet connection.', 'err', 8000);
+      return;
+    }
+    const workbook = XLSX.read(new Uint8Array(arrayBuffer), { type: 'array', cellDates: true });
+
+    // Pick the first sheet that is NOT the g_polygon geometry sheet
+    var sheetName = workbook.SheetNames.find(function(n) {
+      return !n.toLowerCase().includes('polygon') && !n.toLowerCase().includes('g_poly');
+    }) || workbook.SheetNames[0];
+
+    console.log('SARMAAN XLSX: sheets =', workbook.SheetNames, '| using =', sheetName);
+
+    var sheet = workbook.Sheets[sheetName];
+
+    // Convert to array of objects using the first row as headers.
+    // raw:false converts dates to locale strings; defval:'' fills empty cells.
+    var jsonRows = XLSX.utils.sheet_to_json(sheet, { raw: false, defval: '' });
+
+    if (!jsonRows.length) {
+      document.getElementById('dsStatus').innerHTML =
+        '<strong style="color:#ef4444">✗ Error:</strong> Sheet "' + sheetName + '" is empty.';
+      showToast('❌ XLSX sheet "' + sheetName + '" is empty.', 'err', 8000);
+      return;
+    }
+
+    // Normalise all cell values to trimmed strings (XLSX may return Date objects etc.)
+    var csvRows = jsonRows.map(function(row) {
+      var out = {};
+      Object.keys(row).forEach(function(k) {
+        out[k] = String(row[k] === null || row[k] === undefined ? '' : row[k]).trim();
+      });
+      return out;
+    });
+
+    processRowObjects(csvRows, csvRows.length, sourceName);
+
+  } catch(err) {
+    document.getElementById('dsStatus').innerHTML =
+      '<strong style="color:#ef4444">✗ XLSX Error:</strong> ' + String(err.message || err);
+    showToast('❌ XLSX error: ' + String(err.message || err), 'err', 10000);
+    console.error('processXLSXBuffer error:', err);
+  }
+}
+
+// ─────────────────────────────────────────────────────────
+// AUTO-FETCH XLSX FROM KOBOTOOLBOX
+// ─────────────────────────────────────────────────────────
+
+async function fetchKoboXLSX(silent) {
+  var btn = document.getElementById('fetchXlsxBtn');
+  if (!silent && btn) {
+    btn.innerHTML = '<span class="spinner"></span> Fetching…';
+    btn.disabled  = true;
+    showToast('⏳ Connecting to KoboToolbox…', 'warn', 60000);
+  }
+  var dsStatus = document.getElementById('dsStatus');
+  if (dsStatus) dsStatus.textContent = silent ? 'Auto-fetching latest data…' : 'Fetching latest data from KoboToolbox…';
+
+  try {
+    // Proxy route served by the Flask app (app.py)
+    const proxyUrl = '/proxy?url=' + encodeURIComponent(KOBO_XLSX_URL);
+
+    const resp = await fetch(proxyUrl, {
+      cache: 'no-cache',
+      headers: {
+        'Accept': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, */*'
+      }
+    });
+
+    if (!resp.ok) {
+      if (resp.status === 0 || resp.type === 'error') {
+        throw new Error('Proxy server error. Please check the server logs.');
+      }
+
+      var msg = resp.status === 404 ? '404 Not Found — Please check the URL'
+              : resp.status === 403 ? '403 Forbidden — Access denied'
+              : resp.status === 500 ? 'Proxy server error — Check the proxy console for details'
+              : 'HTTP ' + resp.status + ': ' + resp.statusText;
+      throw new Error(msg);
+    }
+
+    var buffer = await resp.arrayBuffer();
+    if (!buffer || buffer.byteLength < 100) {
+      throw new Error('File is empty or too small. Please check the KoboToolbox export settings.');
+    }
+
+    processXLSXBuffer(buffer, 'KoboToolbox (auto-fetch ' + new Date().toLocaleTimeString() + ')');
+    if (!silent) showToast('✓ Data loaded successfully', 'ok', 5000);
+
+  } catch(err) {
+    var isProxyError = err.message.includes('Proxy server error');
+    if (dsStatus) {
+      dsStatus.innerHTML =
+        '<strong style="color:#ef4444">✗ Fetch failed:</strong> ' + err.message +
+        (isProxyError
+          ? '<br><br><strong>⚠️ Check the Render service logs for details.</strong>'
+          : '<br><br><strong>💡 Alternative:</strong> <a href="' + KOBO_XLSX_URL + '" target="_blank" style="color:#60a5fa;text-decoration:underline">Download the Excel file manually</a> and drag it into the green drop zone above.'
+        );
+    }
+    if (!silent) showToast('❌ ' + err.message, 'err', 15000);
+    console.error('fetchKoboXLSX error:', err);
+  } finally {
+    if (!silent && btn) {
+      btn.innerHTML = '↻ Fetch Latest Data from KoboToolbox';
+      btn.disabled  = false;
+    }
+  }
+}
+
+var _toastTimer = null;
+function showToast(html, type, durationMs) {
+  var t = document.getElementById('uploadToast');
+  if (!t) return;
+  t.className = 'show ' + (type === 'ok' ? 'toast-ok' : type === 'warn' ? 'toast-warn' : 'toast-err');
+  t.innerHTML = html;
+  clearTimeout(_toastTimer);
+  _toastTimer = setTimeout(function() {
+    t.classList.remove('show');
+  }, durationMs || 6000);
+}
+
+function updateLiveDataPill(count, source) {
+  var pill = document.getElementById('liveDataPill');
+  if (!pill) return;
+  pill.style.display = 'inline-block';
+  pill.title = 'Live data loaded from: ' + (source || 'file') + ' — ' + count + ' records';
+  pill.textContent = '✓ Live Data: ' + count + ' records';
+}
+
+function toggleAutoRefresh() {
+  const checked = document.getElementById('autoRefreshCheck').checked;
+  localStorage.setItem('auto_refresh_enabled', checked);
+  
+  if (checked) {
+    startAutoRefresh();
+    document.getElementById('dsStatus').textContent = '✓ Automatic refresh enabled.';
+  } else {
+    stopAutoRefresh();
+    document.getElementById('dsStatus').textContent = 'ℹ Automatic refresh disabled.';
+  }
+}
+
+function updateRefreshInterval() {
+  const minutes = parseInt(document.getElementById('refreshInterval').value);
+  localStorage.setItem('refresh_interval', minutes);
+  
+  if (document.getElementById('autoRefreshCheck').checked) {
+    stopAutoRefresh();
+    startAutoRefresh();
+    document.getElementById('dsStatus').textContent = `✓ Refresh interval updated to ${minutes} minute(s).`;
+  }
+}
+
+function startAutoRefresh() {
+  const minutes = parseInt(document.getElementById('refreshInterval').value || 5);
+  const milliseconds = minutes * 60 * 1000;
+  
+  stopAutoRefresh(); // Clear any existing timer
+  
+  autoRefreshTimer = setInterval(() => {
+    console.log('Auto-refreshing data...');
+    fetchKoboXLSX(true);
+  }, milliseconds);
+}
+
+function stopAutoRefresh() {
+  if (autoRefreshTimer) {
+    clearInterval(autoRefreshTimer);
+    autoRefreshTimer = null;
+  }
+}
+
+// Load saved settings on page load
+(function initDS() {
+  var url   = localStorage.getItem('kobo_url') || '';
+  var last  = localStorage.getItem('kobo_last_fetch');
+  var koboUrlEl = document.getElementById('koboUrl');
+  if (url && koboUrlEl)   koboUrlEl.value = url;
+  var dsStatus = document.getElementById('dsStatus');
+  if (last && dsStatus) {
+    dsStatus.textContent =
+      'Last fetched: ' + new Date(last).toLocaleString() + ' · Click "Fetch Latest Data" or drop a file to reload.';
+  }
+  // Restore column overrides
+  const savedLGA  = localStorage.getItem('col_override_lga')  || '';
+  const savedDate = localStorage.getItem('col_override_date') || '';
+  var overrideLGAEl  = document.getElementById('overrideLGA');
+  var overrideDateEl = document.getElementById('overrideDate');
+  if (savedLGA  && overrideLGAEl)  overrideLGAEl.value  = savedLGA;
+  if (savedDate && overrideDateEl) overrideDateEl.value = savedDate;
+
+  const autoRefreshEnabled = localStorage.getItem('auto_refresh_enabled') === 'true';
+  const refreshInterval    = localStorage.getItem('refresh_interval') || '5';
+  var autoRefreshCheckEl = document.getElementById('autoRefreshCheck');
+  var refreshIntervalEl  = document.getElementById('refreshInterval');
+  if (autoRefreshCheckEl) autoRefreshCheckEl.checked = autoRefreshEnabled;
+  if (refreshIntervalEl)  refreshIntervalEl.value    = refreshInterval;
+  if (autoRefreshEnabled && sessionStorage.getItem('sarmaan_user')) startAutoRefresh();
+})();
+
+async function fetchFromKobo() {
+  const url = document.getElementById('koboUrl').value.trim();
+  if (!url) {
+    alert('Please paste your KoboToolbox CSV export URL, or use the file drop zone above.');
+    return;
+  }
+
+  const btn = document.getElementById('fetchBtn');
+  btn.innerHTML = '<span class="spinner"></span> Fetching…';
+  btn.disabled  = true;
+
+  // Try fetching the CSV, with automatic CORS-proxy fallback
+  async function tryFetch(targetUrl, label) {
+    document.getElementById('dsStatus').textContent = label;
+    const resp = await fetch(targetUrl, {
+      headers: { 'Accept': 'text/csv, application/csv, text/plain, */*' },
+      mode: 'cors', credentials: 'omit'
+    });
+    if (!resp.ok) {
+      const msg = resp.status === 403 ? 'Access Denied (403)' :
+                  resp.status === 404 ? 'Not Found (404) — check the URL is correct' :
+                  'HTTP ' + resp.status + ': ' + resp.statusText;
+      throw new Error(msg);
+    }
+    return resp.text();
+  }
+
+  try {
+    let csvText, usedProxy = false;
+
+    try {
+      csvText = await tryFetch(url, 'Connecting to KoboToolbox…');
+    } catch(directErr) {
+      const isCors = directErr.name === 'TypeError' || directErr.message.includes('Failed to fetch');
+      if (!isCors) throw directErr;
+
+      // Auto-retry via public CORS proxy
+      const proxyUrl = 'https://api.allorigins.win/raw?url=' + encodeURIComponent(url);
+      csvText = await tryFetch(proxyUrl, 'Direct blocked — retrying via CORS proxy…');
+      usedProxy = true;
+    }
+
+    if (!csvText || csvText.trim().length < 10) throw new Error('Empty response. Check your export URL.');
+
+    processCSVText(csvText, usedProxy ? 'URL (via proxy)' : 'URL');
+    localStorage.setItem('kobo_url', url);
+
+  } catch(err) {
+    const isCors = err.name === 'TypeError' || err.message.includes('Failed to fetch');
+    if (isCors) {
+      document.getElementById('dsStatus').innerHTML =
+        '<strong style="color:#ef4444">✗ Both direct and proxy fetch blocked.</strong><br><br>' +
+        '<strong>Use Method 1 instead:</strong> Download the CSV from KoboToolbox into your computer, ' +
+        'then drag &amp; drop it into the green box above — this always works with no CORS restrictions.<br><br>' +
+        '<code style="background:#1e293b;padding:3px 6px;border-radius:4px;font-size:.72rem;word-break:break-all;display:block;margin-top:6px">' + url + '</code>';
+    } else {
+      document.getElementById('dsStatus').innerHTML =
+        '<strong style="color:#ef4444">✗ Error:</strong> ' + err.message;
+    }
+    console.error('fetchFromKobo:', err);
+  } finally {
+    btn.innerHTML = '↻ Fetch from URL';
+    btn.disabled  = false;
+  }
+}
+
+// ═══════════════════════════════════════════════════════
+// CSV PARSER FOR EXPORT-SETTINGS URLS
+// ═══════════════════════════════════════════════════════
+function parseCSV(csvText) {
+  // Debug: Log first 500 characters to see the structure
+  console.log('CSV Text preview (first 500 chars):', csvText.substring(0, 500));
+  console.log('CSV Text length:', csvText.length, 'characters');
+  
+  const lines = csvText.split(/\r?\n/).filter(line => line.trim());
+  if (lines.length < 2) {
+    console.error('CSV has less than 2 lines');
+    return [];
+  }
+  
+  console.log('Total lines found:', lines.length);
+  console.log('First line length:', lines[0].length, 'characters');
+  console.log('First line preview:', lines[0].substring(0, 200));
+  
+  // Detect delimiter: check if first line has more semicolons than commas
+  const firstLine = lines[0];
+  const commaCount = (firstLine.match(/,/g) || []).length;
+  const semicolonCount = (firstLine.match(/;/g) || []).length;
+  const delimiter = semicolonCount > commaCount ? ';' : ',';
+  
+  console.log(`CSV delimiter detected: "${delimiter}" (commas: ${commaCount}, semicolons: ${semicolonCount})`);
+  
+  // Parse header row properly handling quoted fields
+  const headers = parseCSVLine(lines[0], delimiter);
+  
+  // Debug: Log the headers so we can see what columns exist
+  console.log('CSV Headers found:', headers.length, 'columns');
+  console.log('First 10 headers:', headers.slice(0, 10));
+  console.log('Last 10 headers:', headers.slice(-10));
+  console.log('Headers 50-60:', headers.slice(50, 60));
+  console.log('Headers with "lga":', headers.filter(h => h.toLowerCase().includes('lga')));
+  console.log('Headers with "date":', headers.filter(h => h.toLowerCase().includes('date') || h.toLowerCase().includes('today')));
+  console.log('Headers with "latitude":', headers.filter(h => h.toLowerCase().includes('latitude')));
+  console.log('Total rows:', lines.length - 1);
+  
+  const records = [];
+  
+  for (let i = 1; i < lines.length; i++) {
+    const values = parseCSVLine(lines[i], delimiter);
+    if (values.length === 0) continue;
+    
+    const record = {};
+    headers.forEach((header, index) => {
+      record[header] = values[index] !== undefined ? values[index] : '';
+    });
+    
+    // Debug: Log first record to see structure
+    if (i === 1) {
+      console.log('First CSV record parsed successfully');
+      console.log('auth_lc_lgalabel =', record['auth_lc_lgalabel']);
+      console.log('today =', record['today']);
+      console.log('latitude =', record['_Capture GPS location (Latitude & Longitude)_latitude']);
+    }
+    
+    records.push(record);
+  }
+  
+  console.log(`Successfully parsed ${records.length} CSV records`);
+  return records;
+}
+
+function parseCSVLine(line, delimiter = ',') {
+  const values = [];
+  let current = '';
+  let inQuotes = false;
+  
+  for (let i = 0; i < line.length; i++) {
+    const char = line[i];
+    const nextChar = line[i + 1];
+    
+    if (char === '"') {
+      if (inQuotes && nextChar === '"') {
+        // Escaped quote inside quoted field
+        current += '"';
+        i++; // Skip next quote
+      } else {
+        // Toggle quote state
+        inQuotes = !inQuotes;
+      }
+    } else if (char === delimiter && !inQuotes) {
+      // End of field
+      values.push(current.trim());
+      current = '';
+    } else {
+      current += char;
+    }
+  }
+  
+  // Add the last field
+  values.push(current.trim());
+  
+  // Clean up values - remove surrounding quotes
+  return values.map(v => v.replace(/^["']|["']$/g, ''));
+}
+
+// ═══════════════════════════════════════════════════════
+// COLUMN AUTO-DETECTION
+// ═══════════════════════════════════════════════════════
+function detectColumnMap(headers) {
+  const lh = headers.map(h => h.toLowerCase());
+
+  function best(patterns) {
+    for (const p of patterns) {
+      const i = lh.indexOf(p.toLowerCase());
+      if (i >= 0) return headers[i];
+    }
+    for (const p of patterns) {
+      const i = lh.findIndex(h => h.includes(p.toLowerCase()));
+      if (i >= 0) return headers[i];
+    }
+    return null;
+  }
+
+  // Find an exact header (case-insensitive) — used for manual overrides
+  function exact(name) {
+    if (!name) return null;
+    const i = lh.indexOf(name.toLowerCase());
+    return i >= 0 ? headers[i] : null;
+  }
+
+  const map = {};
+
+  // Apply manual overrides first (user-specified column names take priority)
+  const overrideLGA  = localStorage.getItem('col_override_lga')  || '';
+  const overrideDate = localStorage.getItem('col_override_date') || '';
+  map.lga  = exact(overrideLGA)  || best(['auth_lc_lgalabel','Select your LGA','active_lga','lga_name','lgaselect','lgacoordinator','lga']);
+  map.date = exact(overrideDate) || best(['today','date of report','date','_submission_time','start']);
+  map.time    = best(['time of form','starttime','start_time','time']);
+  map.dist    = best(['distance_loc_lga','distance from','distance_km','distance']);
+  map.result  = best(['result','location_status','inside_outside']);
+  map.reason  = best(['reason for being outside','reason_outside','outside_reason']);
+  map.wards   = best(['number of wards covered','wards covered','wards_covered','num_wards']);
+  map.settle  = best(['number of settlements covered','settlements covered','settlements_covered']);
+  map.hh      = best(['total households visited','households visited','hh_visited','total_hh']);
+  map.dev     = best(['were there any device or technical issues','device_issues','technical_issues']);
+  map.devNote = best(['describe the device or technical issues','device issue description','device_note']);
+  map.sec     = best(['were there any security or access incidents','security_incidents','security']);
+  map.secNote = best(['describe what happened','security description','security_note']);
+  map.lat     = best(['capture gps location (latitude & longitude)_latitude','_latitude','gps_latitude','latitude']);
+  map.lng     = best(['capture gps location (latitude & longitude)_longitude','_longitude','gps_longitude','longitude']);
+
+  // Activity type columns (KoboToolbox exports them as separate 0/1 columns)
+  map.act_training    = best(['survey data collection training','activities carried out today/survey','act_training','training']);
+  map.act_transit     = best(['type(s) of activities carried out today/transit','activities/transit','act_transit','transit']);
+  map.act_field       = best(['field coordination and implementation','activities/field coordination','act_field','field coordination']);
+  map.act_supervision = best(['supervision and quality assurance','activities/supervision','act_supervision','supervision']);
+  map.act_data        = best(['data monitoring and reporting','activities/data monitoring','act_data','data monitoring']);
+  map.act_stakeholder = best(['stakeholder engagement and advocacy','activities/stakeholder','act_stakeholder','stakeholder']);
+  map.act_team        = best(['team management and support','activities/team management','act_team','team management']);
+  map.act_problem     = best(['problem solving and escalation','activities/problem solving','act_problem','problem solving']);
+  map.act_logistics   = best(['logistics and planning','activities/logistics','act_logistics','logistics']);
+  map.activityRaw     = best(['type(s) of activities carried out today','activity_type','activities']);
+
+  console.log('Column map detected:', map);
+  return map;
+}
+
+function showColumnMappingReport(map, allHeaders) {
+  const REQUIRED = {
+    lga:'LGA Name', date:'Date', time:'Time',
+    dist:'Distance from LGA', result:'Location Status', reason:'Reason Outside LGA',
+    act_training:'Activity: Training', act_transit:'Activity: Transit', act_field:'Activity: Field Coordination'
+  };
+  const OPTIONAL = {
+    wards:'Wards Covered', settle:'Settlements', hh:'Households Visited',
+    dev:'Device Issues', devNote:'Device Notes', sec:'Security Incident', secNote:'Security Notes',
+    lat:'GPS Latitude', lng:'GPS Longitude',
+    act_supervision:'Activity: Supervision', act_data:'Activity: Data Monitoring',
+    act_stakeholder:'Activity: Stakeholder', act_team:'Activity: Team Mgmt',
+    act_problem:'Activity: Problem Solving', act_logistics:'Activity: Logistics'
+  };
+
+  const reqMissing = Object.keys(REQUIRED).filter(k => !map[k]).length;
+
+  let html = `<details style="margin-top:10px">
+    <summary style="cursor:pointer;color:rgba(255,255,255,.85);font-size:.78rem;font-weight:700;padding:4px 0">
+      🔍 Column Mapping Report — ${allHeaders.length} total columns · ${reqMissing === 0 ? '✓ All required fields found' : '⚠ ' + reqMissing + ' required field(s) missing'}
+    </summary>
+    <div style="margin-top:8px;background:rgba(0,0,0,.2);border-radius:6px;padding:12px;font-size:.74rem">
+      <div style="font-weight:700;color:rgba(255,255,255,.9);margin-bottom:6px">Required Fields:</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:3px;margin-bottom:10px">`;
+
+  for (const [key, label] of Object.entries(REQUIRED)) {
+    const col = map[key];
+    html += `<div style="display:flex;align-items:baseline;gap:5px;padding:2px 0">
+      <span style="color:${col ? '#22c55e' : '#ef4444'};flex-shrink:0">${col ? '✓' : '✗'}</span>
+      <span style="color:rgba(255,255,255,.7)">${label}</span>
+      ${col ? `<code style="color:#86efac;font-size:.68rem;background:rgba(0,0,0,.3);padding:1px 4px;border-radius:3px;word-break:break-all">${col}</code>` : '<span style="color:#ef4444;font-size:.7rem">not found</span>'}
+    </div>`;
+  }
+
+  html += `</div><div style="font-weight:700;color:rgba(255,255,255,.9);margin-bottom:6px">Optional Fields:</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:3px">`;
+
+  for (const [key, label] of Object.entries(OPTIONAL)) {
+    const col = map[key];
+    html += `<div style="display:flex;align-items:baseline;gap:5px;padding:2px 0">
+      <span style="color:${col ? '#22c55e' : '#94a3b8'};flex-shrink:0">${col ? '✓' : '○'}</span>
+      <span style="color:rgba(255,255,255,.55)">${label}</span>
+      ${col ? `<code style="color:#86efac;font-size:.68rem;background:rgba(0,0,0,.3);padding:1px 4px;border-radius:3px;word-break:break-all">${col}</code>` : ''}
+    </div>`;
+  }
+
+  html += `</div></div></details>`;
+  return html;
+}
+
+// ═══════════════════════════════════════════════════════
+// KOBO RECORD PARSER (uses detected COLUMN_MAP)
+// ═══════════════════════════════════════════════════════
+function gv(obj) {
+  var keys = Array.prototype.slice.call(arguments, 1);
+  for (var i=0;i<keys.length;i++) {
+    var v = obj[keys[i]];
+    if (v !== undefined && v !== null && v !== '') return v;
+  }
+  return null;
+}
+function toBool(v) {
+  if (!v) return false;
+  return String(v).trim().toLowerCase() === 'yes' || String(v).trim() === '1';
+}
+function toInt(v) {
+  if (v === null || v === undefined || v === '') return null;
+  var n = parseInt(v, 10);
+  return isNaN(n) ? null : n;
+}
+
+function parseAnyDate(raw) {
+  if (!raw) return null;
+  var s = String(raw).trim();
+  if (!s) return null;
+  var m;
+  // YYYY-MM-DD  or  YYYY-MM-DDThh:mm:ss...
+  m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (m) return m[1] + '-' + m[2] + '-' + m[3];
+  // YYYY/MM/DD
+  m = s.match(/^(\d{4})\/(\d{2})\/(\d{2})/);
+  if (m) return m[1] + '-' + m[2] + '-' + m[3];
+  // DD/MM/YYYY (both parts exactly 2 digits)
+  m = s.match(/^(\d{2})\/(\d{2})\/(\d{4})/);
+  if (m) return m[3] + '-' + m[2] + '-' + m[1];
+  // DD-MM-YYYY
+  m = s.match(/^(\d{2})-(\d{2})-(\d{4})/);
+  if (m) return m[3] + '-' + m[2] + '-' + m[1];
+  // M/D/YYYY or D/M/YYYY with single-digit month or day (e.g. 5/2/2026 from KoboToolbox CSV)
+  // Treated as M/D/YYYY (the locale KoboToolbox uses for CSV exports)
+  m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+  if (m) {
+    var mo = String(parseInt(m[1], 10)).padStart(2, '0');
+    var dy = String(parseInt(m[2], 10)).padStart(2, '0');
+    return m[3] + '-' + mo + '-' + dy;
+  }
+  return null;
+}
+
+function parseKoboRecord(r) {
+  const cm = COLUMN_MAP;
+
+  // ── LGA ──────────────────────────────────────────────
+  var lgaRaw = cm
+    ? (cm.lga ? String(r[cm.lga] || '').trim() : '')
+    : String(gv(r,'auth_lc_lgalabel','active_lga','lga','LGA','LGA Name','Select your LGA') || '').trim();
+
+  // Fallback 1: try well-known column names regardless of column map
+  if (!lgaRaw) {
+    lgaRaw = String(gv(r,
+      'auth_lc_lgalabel','auth_lc_lganame','active_lga','lga','LGA',
+      'LGA Name','Select your LGA','lgacoordinator','lga_name','lgaselect'
+    ) || '').trim();
+  }
+  // Fallback 2: scan every column whose name contains 'lga' — take first non-empty value
+  if (!lgaRaw) {
+    var rKeys = Object.keys(r);
+    for (var ki = 0; ki < rKeys.length; ki++) {
+      if (!rKeys[ki].toLowerCase().includes('lga')) continue;
+      var cv = String(r[rKeys[ki]] || '').trim();
+      if (cv) { lgaRaw = cv; break; }
+    }
+  }
+  // Fallback 3 (last resort): scan ALL values and match against known Zamfara LGA names
+  if (!lgaRaw) {
+    var allVals = Object.values(r);
+    for (var vi = 0; vi < allVals.length; vi++) {
+      var sv = String(allVals[vi] || '').trim();
+      if (!sv) continue;
+      var norm = normalizeLGA(sv);
+      if (ALL_LGAS.some(function(l){ return norm.toLowerCase() === l.toLowerCase(); })) {
+        lgaRaw = sv; break;
+      }
+    }
+  }
+  if (!lgaRaw) return null;
+  var lgaLabel = normalizeLGA(lgaRaw);
+
+  // ── DATE ─────────────────────────────────────────────
+  var dateRaw = cm
+    ? String(r[cm.date] || '')
+    : String(gv(r,'today','Date of Report','_submission_time','date','start') || '');
+
+  var date = parseAnyDate(dateRaw)
+    || parseAnyDate(r['_submission_time'])
+    || parseAnyDate(r['start'])
+    || parseAnyDate(r['end'])
+    || parseAnyDate(r['today']);
+
+  // Fallback: scan every column whose name suggests a date/time
+  if (!date) {
+    var rk2 = Object.keys(r);
+    for (var di = 0; di < rk2.length; di++) {
+      var dk = rk2[di].toLowerCase();
+      if (dk.includes('time') || dk.includes('date') || dk.includes('submission') || dk.includes('start') || dk.includes('end')) {
+        var d2 = parseAnyDate(String(r[rk2[di]] || ''));
+        if (d2) { date = d2; break; }
+      }
+    }
+  }
+  // Final fallback: scan ALL values in this row for anything that looks like a date
+  if (!date) {
+    var av2 = Object.values(r);
+    for (var ai = 0; ai < av2.length; ai++) {
+      var d3 = parseAnyDate(String(av2[ai] || ''));
+      if (d3) { date = d3; break; }
+    }
+  }
+  if (!date) return null;
+
+  // ── TIME ─────────────────────────────────────────────
+  var timeRaw = cm
+    ? (cm.time ? String(r[cm.time] || '') : '')
+    : String(gv(r,'Time of form','starttime','time','start_time') || '');
+  var time = timeRaw.substring(0,5);
+
+  // ── ACTIVITIES ───────────────────────────────────────
+  var acts = [];
+  const ACT_MAP = [
+    ['Training',              cm ? cm.act_training    : null],
+    ['Transit',               cm ? cm.act_transit     : null],
+    ['Field Coordination',    cm ? cm.act_field       : null],
+    ['Supervision & QA',      cm ? cm.act_supervision : null],
+    ['Data Monitoring',       cm ? cm.act_data        : null],
+    ['Stakeholder Engagement',cm ? cm.act_stakeholder : null],
+    ['Team Management',       cm ? cm.act_team        : null],
+    ['Problem Solving',       cm ? cm.act_problem     : null],
+    ['Logistics',             cm ? cm.act_logistics   : null],
+  ];
+  // Fallback JSON column names when no column map
+  const ACT_JSON = [
+    ['Training',              'Type(s) of activities carried out today/Survey Data Collection Training'],
+    ['Field Coordination',    'Type(s) of activities carried out today/Field Coordination and Implementation'],
+    ['Supervision & QA',      'Type(s) of activities carried out today/Supervision and Quality Assurance'],
+    ['Data Monitoring',       'Type(s) of activities carried out today/Data Monitoring and Reporting'],
+    ['Stakeholder Engagement','Type(s) of activities carried out today/Stakeholder Engagement and Advocacy'],
+    ['Team Management',       'Type(s) of activities carried out today/Team Management and Support'],
+    ['Problem Solving',       'Type(s) of activities carried out today/Problem Solving and Escalation'],
+    ['Logistics',             'Type(s) of activities carried out today/Logistics and Planning'],
+    ['Transit',               'Type(s) of activities carried out today/Transit'],
+  ];
+
+  if (cm) {
+    for (const [name, col] of ACT_MAP) {
+      if (col) {
+        const v = r[col];
+        if (v === 1 || v === '1' || v === true || String(v).toLowerCase() === 'yes') acts.push(name);
+      }
+    }
+    // Fallback: raw activity string column
+    if (!acts.length && cm.activityRaw) {
+      const raw = String(r[cm.activityRaw] || '').toLowerCase();
+      if (raw.includes('training'))    acts.push('Training');
+      if (raw.includes('transit'))     acts.push('Transit');
+      if (raw.includes('field'))       acts.push('Field Coordination');
+      if (raw.includes('supervision')) acts.push('Supervision & QA');
+      if (raw.includes('data'))        acts.push('Data Monitoring');
+      if (raw.includes('stakeholder')) acts.push('Stakeholder Engagement');
+      if (raw.includes('team'))        acts.push('Team Management');
+      if (raw.includes('problem'))     acts.push('Problem Solving');
+      if (raw.includes('logistics'))   acts.push('Logistics');
+    }
+  } else {
+    // JSON mode
+    for (const [name, col] of ACT_JSON) {
+      const v = r[col];
+      if (v === 1 || v === '1' || v === true) acts.push(name);
+    }
+    if (!acts.length) {
+      const raw = String(gv(r,'Type(s) of activities carried out today','activity_type') || '').toLowerCase();
+      if (raw.includes('training'))    acts.push('Training');
+      if (raw.includes('transit'))     acts.push('Transit');
+      if (raw.includes('field'))       acts.push('Field Coordination');
+      if (raw.includes('supervision')) acts.push('Supervision & QA');
+    }
+  }
+  if (!acts.length) acts.push('Other');
+
+  // ── LOCATION ─────────────────────────────────────────
+  var dist    = parseFloat(cm ? (cm.dist   ? r[cm.dist]   : 0) : (gv(r,'distance_loc_lga') || 0)) || 0;
+  var resultR = String(cm   ? (cm.result  ? r[cm.result]  : '') : (gv(r,'result') || ''));
+  var loc     = (dist > 2 || resultR.toLowerCase().includes('outside')) ? 'Outside LGA' : 'Inside LGA';
+  var reason  = String(cm   ? (cm.reason  ? r[cm.reason]  : '') : (gv(r,'Reason for being outside the selected LGA') || ''));
+
+  // ── COUNTS ───────────────────────────────────────────
+  var wards   = toInt(cm ? (cm.wards  ? r[cm.wards]  : null) : gv(r,'Number of wards covered today'));
+  var settle  = toInt(cm ? (cm.settle ? r[cm.settle] : null) : gv(r,'Number of settlements covered today'));
+  var hh      = toInt(cm ? (cm.hh     ? r[cm.hh]     : null) : gv(r,'Total households visited today (approximate)'));
+
+  // ── ISSUES ───────────────────────────────────────────
+  var devRaw  = cm ? (cm.dev     ? r[cm.dev]     : 'No') : (gv(r,'Were there any device or technical issues today?') || 'No');
+  var dev     = toBool(devRaw) ? 1 : 0;
+  var devNote = String(cm ? (cm.devNote ? r[cm.devNote] : '') : (gv(r,'Describe the device or technical issues') || ''));
+  var secRaw  = cm ? (cm.sec     ? r[cm.sec]     : 'No') : (gv(r,'Were there any security or access incidents today?') || 'No');
+  var sec     = toBool(secRaw);
+  var secNote = String(cm ? (cm.secNote ? r[cm.secNote] : '') : (gv(r,'Describe what happened') || ''));
+
+  // ── GPS ──────────────────────────────────────────────
+  var latitude  = parseFloat(cm ? (cm.lat ? r[cm.lat] : 0) : (gv(r,'_Capture GPS location (Latitude & Longitude)_latitude','latitude') || 0)) || null;
+  var longitude = parseFloat(cm ? (cm.lng ? r[cm.lng] : 0) : (gv(r,'_Capture GPS location (Latitude & Longitude)_longitude','longitude') || 0)) || null;
+
+  return { date:date, lga:String(lgaLabel).trim(), time:time, survey:'AMR',
+           acts:acts, loc:loc, dist:dist, reason:reason,
+           wards:wards, settle:settle, hh:hh, dev:dev, sec:sec,
+           devNote:devNote, secNote:secNote,
+           latitude:latitude, longitude:longitude };
+}
+
+// ═══════════════════════════════════════════════════════
+// FILTERS
+// ═══════════════════════════════════════════════════════
+function setDateFilter(d, btn) {
+  activeDates = d === 'all' ? ['all'] : [d];
+  document.querySelectorAll('#dateFilterGroup .btn').forEach(function(b){b.classList.remove('active')});
+  btn.classList.add('active');
+  renderAll();
+}
+function setLGAFilter(v) {
+  activeLGA = v;
+  
+  // Automatically open report card when LGA is selected
+  if (v && v !== 'all' && v !== '') {
+    // Small delay to let the filter apply first
+    setTimeout(function() {
+      openLGAReport(v);
+    }, 100);
+  }
+  
+  renderAll();
+  
+  // Refresh map if it's visible to update zoom level for selected LGA
+  if (mapVisible && mapInstance) {
+    setTimeout(initializeMap, 150);
+  }
+}
+function viewSelectedLGAReport() {
+  if (activeLGA && activeLGA !== 'all') {
+    openLGAReport(activeLGA);
+  }
+}
+function rebuildDateButtons() {
+  var dates = allDates();
+  var grp = document.getElementById('dateFilterGroup');
+  grp.innerHTML = '<button class="btn active" onclick="setDateFilter(\'all\',this)">All Days</button>';
+  dates.forEach(function(d) {
+    var lbl = DL_FULL[d] || d;
+    grp.innerHTML += '<button class="btn" onclick="setDateFilter(\''+d+'\',this)">'+lbl+'</button>';
+  });
+  activeDates = ['all'];
+
+  // Update header date range pill
+  if (dates.length) {
+    var first = DL[dates[0]] || dates[0];
+    var last  = DL[dates[dates.length-1]] || dates[dates.length-1];
+    var rangeEl = document.getElementById('hdrDateRange');
+    if (rangeEl) rangeEl.textContent = first + (dates.length > 1 ? ' – ' + last : '') + ' 2026';
+  }
+}
+function rebuildLGAFilter() {
+  var lgas = [...new Set(records.map(function(r){return r.lga}))].sort();
+
+  if (userRole === 'lga') {
+    // For LGA users, re-anchor activeLGA to the closest match in the loaded data
+    // (handles case where login name casing differs from CSV value after normalization)
+    var match = lgas.find(function(l){ return l.toLowerCase() === currentUser.toLowerCase(); });
+    if (match) activeLGA = match;
+    return;
+  }
+
+  var sel = document.getElementById('lgaFilter');
+  sel.innerHTML = '<option value="all">All LGAs</option>' +
+    lgas.map(function(l){return '<option value="'+l+'">'+l+'</option>'}).join('');
+  activeLGA = 'all';
+  sel.value = 'all';
+
+  // Update LGA count pill in header
+  var lgaCountEl = document.getElementById('hdrLGACount');
+  if (lgaCountEl) lgaCountEl.textContent = '📍 ' + lgas.length + ' LGAs';
+}
+
+// ═══════════════════════════════════════════════════════
+// KPI CARDS
+// ═══════════════════════════════════════════════════════
+function renderKPIs(data) {
+  var dates    = activeDates[0] === 'all' ? allDates() : activeDates;
+  // Use actual LGAs present in loaded records (not the hardcoded ALL_LGAS list)
+  // so "expected" count is always accurate for the current dataset
+  var allLoadedLGAs = [...new Set(records.map(function(r){return r.lga}))];
+  var lgaList  = activeLGA === 'all' ? allLoadedLGAs : [activeLGA];
+  var expected = lgaList.length * dates.length;
+  var submitted= data.length;
+  var missing  = Math.max(0, expected - submitted);
+  var rate     = expected > 0 ? Math.round(submitted / expected * 100) : 0;
+  var outside  = data.filter(function(r){return r.loc==='Outside LGA'}).length;
+  var avgDist  = data.length
+    ? (data.reduce(function(s,r){return s+r.dist},0)/data.length).toFixed(1)
+    : '—';
+  var devCount = data.reduce(function(s,r){return s+r.dev},0);
+  var secCount = data.filter(function(r){return r.sec}).length;
+
+  var kpis = [];
+  
+  if (userRole === 'admin') {
+    kpis = [
+      {icon:'&#128506;',label:'Total LGAs Monitored',   value:allLoadedLGAs.length, sub:'Zamfara State · '+allLoadedLGAs.length+' reporting',cls:'navy'},
+      {icon:'&#128203;',label:'Reports Submitted',       value:submitted,       sub:rate+'% of '+expected+' expected',        cls:rate>=80?'green':rate>=50?'amber':'red'},
+      {icon:'&#9888;',  label:'Missing Reports',         value:missing,         sub:missing===0?'All LGAs reported':'Not yet reported',cls:missing>0?'amber':'green'},
+      {icon:'&#128205;',label:'Outside Assigned LGA',    value:outside+'/'+submitted,sub:'Expected — training & transit phase',cls:'teal'},
+      {icon:'&#128207;',label:'Avg Distance from LGA',   value:avgDist,         sub:'km · training / transit activity',  cls:''},
+      {icon:'&#128187;',label:'Device Issues',           value:devCount,        sub:devCount===0?'None logged':'See Issues tab',cls:devCount>0?'amber':'green'},
+      {icon:'&#128274;',label:'Security Incidents',      value:secCount,        sub:secCount===0?'None reported':'See Issues tab',cls:secCount>0?'red':'green'},
+    ];
+  } else {
+    // LGA-specific KPIs
+    kpis = [
+      {icon:'&#128203;',label:'Your Reports Submitted',  value:submitted,       sub:'out of '+expected+' expected',           cls:rate>=80?'green':rate>=50?'amber':'red'},
+      {icon:'&#9888;',  label:'Missing Reports',         value:missing,         sub:missing===0?'Complete':'Pending',          cls:missing>0?'amber':'green'},
+      {icon:'&#128205;',label:'Outside LGA Reports',     value:outside+'/'+submitted,sub:'During training/transit',         cls:'teal'},
+      {icon:'&#128207;',label:'Avg Distance',            value:avgDist,         sub:'km from your LGA',                       cls:''},
+      {icon:'&#128187;',label:'Device Issues',           value:devCount,        sub:devCount===0?'None':'Reported',           cls:devCount>0?'amber':'green'},
+      {icon:'&#128274;',label:'Security Incidents',      value:secCount,        sub:secCount===0?'None':'Reported',           cls:secCount>0?'red':'green'},
+    ];
+  }
+
+  document.getElementById('kpiStrip').innerHTML = kpis.map(function(k){
+    return '<div class="kpi '+k.cls+'">'+
+      '<div class="kpi-icon">'+k.icon+'</div>'+
+      '<div class="kpi-label">'+k.label+'</div>'+
+      '<div class="kpi-value">'+k.value+'</div>'+
+      '<div class="kpi-sub">'+k.sub+'</div>'+
+      '</div>';
+  }).join('');
+}
+
+// ═══════════════════════════════════════════════════════
+// COMPLIANCE MATRIX (Admin only)
+// ═══════════════════════════════════════════════════════
+function renderMatrix(data) {
+  if (userRole !== 'admin') return;
+  
+  var dates = activeDates[0]==='all' ? allDates() : activeDates;
+  var header = dates.map(function(d){return '<th>'+(DL[d]||d)+'</th>'}).join('') +
+    (dates.length > 1 ? '<th>Total</th>' : '') + '<th></th>';
+
+  // Use LGAs from loaded records; fall back to ALL_LGAS only when using demo data
+  var loadedLGAs = [...new Set(records.map(function(r){return r.lga}))].sort();
+  var matrixLGAs = loadedLGAs.length ? loadedLGAs : ALL_LGAS;
+
+  var rows = matrixLGAs.map(function(lga) {
+    var cells = dates.map(function(d) {
+      var hit = data.some(function(r){return r.lga===lga && r.date===d});
+      return '<td>'+(hit
+        ? '<span class="pill-ok">✓ Submitted</span>'
+        : '<span class="pill-no">✗ Missing</span>')+'</td>';
+    }).join('');
+
+    var tot = dates.length > 1
+      ? '<td style="font-weight:800">'+dates.filter(function(d){return data.some(function(r){return r.lga===lga&&r.date===d})}).length+'/'+dates.length+'</td>'
+      : '';
+
+    var hasDL = data.some(function(r){return r.lga===lga});
+    var dlBtn = hasDL
+      ? '<td><button class="btn-lga-dl" onclick="downloadLGACSV(\''+lga+'\')">&#128229; Download</button></td>'
+      : '<td></td>';
+    
+    // Make LGA name clickable to open report card
+    var lgaCell = hasDL 
+      ? '<td><a href="javascript:void(0)" onclick="openLGAReport(\''+lga+'\')" style="color:var(--blue);font-weight:800;text-decoration:none;cursor:pointer">'+lga+' 📋</a></td>'
+      : '<td>'+lga+'</td>';
+
+    return '<tr>'+lgaCell+cells+tot+dlBtn+'</tr>';
+  }).join('');
+
+  document.getElementById('matrixWrap').innerHTML =
+    '<table class="matrix"><thead><tr><th>LGA</th>'+header+'</tr></thead><tbody>'+rows+'</tbody></table>';
+}
+
+// ═══════════════════════════════════════════════════════
+// CHARTS
+// ═══════════════════════════════════════════════════════
+function killChart(id) {
+  if (CHART_REG[id]) { CHART_REG[id].destroy(); delete CHART_REG[id]; }
+}
+
+function chartSubmissions(data) {
+  killChart('submissionsChart');
+  var dates = activeDates[0]==='all' ? allDates() : activeDates;
+  var loadedLGAs = [...new Set(records.map(function(r){return r.lga}))];
+  var lgaList = activeLGA === 'all' ? loadedLGAs : [activeLGA];
+  var expectedPerDate = lgaList.length;
+  
+  var sub   = dates.map(function(d){return data.filter(function(r){return r.date===d}).length});
+  var miss  = dates.map(function(d){return expectedPerDate - data.filter(function(r){return r.date===d}).length});
+
+  CHART_REG.submissionsChart = new Chart(
+    document.getElementById('submissionsChart'), {
+      type:'bar',
+      data:{
+        labels: dates.map(function(d){return DL_FULL[d]||d}),
+        datasets:[
+          {label:'Submitted', data:sub,  backgroundColor:'#22c55e', borderRadius:5, stack:'s'},
+          {label:'Missing',   data:miss, backgroundColor:'#fca5a5', borderRadius:5, stack:'s'}
+        ]
+      },
+      options:{
+        responsive:true, maintainAspectRatio:false,
+        plugins:{legend:{position:'top'},tooltip:{callbacks:{label:function(c){return ' '+c.dataset.label+': '+c.raw}}}},
+        scales:{
+          x:{stacked:true,ticks:{font:{size:11}}},
+          y:{stacked:true,beginAtZero:true,max:expectedPerDate,
+             ticks:{stepSize:Math.max(1, Math.ceil(expectedPerDate/5))},title:{display:true,text:'No. of Reports'}}
+        }
+      }
+    }
+  );
+}
+
+function chartActivity(data) {
+  killChart('activityChart');
+  var counts = {};
+  data.forEach(function(r) {
+    var key = r.acts.indexOf('Transit') >= 0 ? 'Transit'
+            : r.acts.indexOf('Training') >= 0 ? 'Training'
+            : r.acts[0] || 'Other';
+    counts[key] = (counts[key]||0) + 1;
+  });
+  var labels = Object.keys(counts);
+  var COLORS = {Training:'#3b82f6',Transit:'#8b5cf6','Field Coordination':'#10b981','Supervision & QA':'#f59e0b',Other:'#94a3b8'};
+
+  CHART_REG.activityChart = new Chart(
+    document.getElementById('activityChart'), {
+      type:'doughnut',
+      data:{
+        labels:labels,
+        datasets:[{
+          data:Object.values(counts),
+          backgroundColor:labels.map(function(l){return COLORS[l]||'#94a3b8'}),
+          borderWidth:2, hoverOffset:8
+        }]
+      },
+      options:{
+        responsive:true, maintainAspectRatio:false,
+        plugins:{
+          legend:{position:'bottom',labels:{padding:12,font:{size:12}}},
+          tooltip:{callbacks:{label:function(c){return ' '+c.label+': '+c.raw+' ('+Math.round(c.raw/data.length*100)+'%)'}}}
+        }
+      }
+    }
+  );
+}
+
+function chartDistance(data) {
+  killChart('distanceChart');
+  var dates = activeDates[0]==='all' ? allDates() : activeDates;
+  var DCOLS = {'2026-05-02':'#3b82f6','2026-05-04':'#8b5cf6','2026-05-05':'#10b981'};
+  var DEF   = ['#f59e0b','#ef4444','#06b6d4'];
+  var loadedLGAs = [...new Set(records.map(function(r){return r.lga}))].sort();
+  var lgaList = activeLGA==='all' ? (loadedLGAs.length ? loadedLGAs : ALL_LGAS) : [activeLGA];
+
+  var datasets = dates.map(function(d,i) {
+    return {
+      label: DL_FULL[d]||d,
+      data: lgaList.map(function(lga) {
+        var r = data.find(function(x){return x.lga===lga && x.date===d});
+        return r ? +r.dist.toFixed(1) : null;
+      }),
+      backgroundColor:(DCOLS[d]||DEF[i%3])+'bb',
+      borderColor:DCOLS[d]||DEF[i%3],
+      borderWidth:1, borderRadius:4
+    };
+  });
+
+  CHART_REG.distanceChart = new Chart(
+    document.getElementById('distanceChart'), {
+      type:'bar',
+      data:{ labels:lgaList, datasets:datasets },
+      options:{
+        responsive:true, maintainAspectRatio:false,
+        plugins:{
+          legend:{position:'top'},
+          tooltip:{callbacks:{label:function(c){return ' '+c.dataset.label+': '+c.raw+' km'}}}
+        },
+        scales:{
+          y:{beginAtZero:true,title:{display:true,text:'Distance from Assigned LGA (km)'}},
+          x:{ticks:{maxRotation:40,font:{size:11}}}
+        }
+      }
+    }
+  );
+}
+
+// ═══════════════════════════════════════════════════════
+// DETAIL TABLES
+// ═══════════════════════════════════════════════════════
+function actBadges(acts) {
+  return acts.map(function(a){
+    return '<span class="badge '+(BADGE_MAP[a]||'b-other')+'">'+a+'</span>';
+  }).join('');
+}
+function nullDash(v) {
+  return (v === null || v === undefined) ? '<span style="color:#cbd5e1">—</span>' : v;
+}
+
+function renderTables(data) {
+  document.getElementById('bodyAll').innerHTML = data.length
+    ? data.map(function(r){
+        return '<tr>'+
+          '<td>'+(DL[r.date]||r.date)+'</td>'+
+          '<td><strong>'+r.lga+'</strong></td>'+
+          '<td>'+r.time+'</td>'+
+          '<td><span style="font-weight:600;color:var(--blue)">'+r.survey+'</span></td>'+
+          '<td>'+actBadges(r.acts)+'</td>'+
+          '<td><span class="badge '+(r.loc==='Outside LGA'?'b-outside':'b-inside')+'">'+r.loc+'</span></td>'+
+          '<td style="font-weight:700;color:'+(r.dist>50?'#dc2626':'#059669')+'">'+r.dist.toFixed(1)+'</td>'+
+          '<td>'+nullDash(r.wards)+'</td>'+
+          '<td>'+nullDash(r.settle)+'</td>'+
+          '<td>'+nullDash(r.hh)+'</td>'+
+          '<td>'+(r.dev>0?'<span style="color:#d97706;font-weight:700">'+r.dev+' ⚠</span>':'<span style="color:#64748b">0</span>')+'</td>'+
+          '<td>'+(r.sec?'<span style="color:#dc2626;font-weight:700">YES ⚠</span>':'<span style="color:#16a34a">No</span>')+'</td>'+
+          '</tr>';
+      }).join('')
+    : '<tr><td colspan="12" class="no-data">No records match the current filter.</td></tr>';
+
+  var outside = data.filter(function(r){return r.loc==='Outside LGA'});
+  document.getElementById('bodyLoc').innerHTML = outside.length
+    ? outside.map(function(r){
+        return '<tr>'+
+          '<td>'+(DL[r.date]||r.date)+'</td>'+
+          '<td><strong>'+r.lga+'</strong></td>'+
+          '<td>'+r.time+'</td>'+
+          '<td><span class="badge b-outside">Outside LGA</span></td>'+
+          '<td style="font-weight:700;color:#dc2626">'+r.dist.toFixed(1)+' km</td>'+
+          '<td style="max-width:420px;color:#475569;font-size:.77rem">'+(r.reason||'—')+'</td>'+
+          '</tr>';
+      }).join('')
+    : '<tr><td colspan="6" class="no-data">All reports are within assigned LGA.</td></tr>';
+
+  var issues = data.filter(function(r){return r.dev>0 || r.sec});
+  document.getElementById('bodyIssues').innerHTML = issues.length
+    ? issues.map(function(r){
+        var notes = [r.devNote, r.secNote].filter(Boolean).join(' | ') || '—';
+        return '<tr>'+
+          '<td>'+(DL[r.date]||r.date)+'</td>'+
+          '<td><strong>'+r.lga+'</strong></td>'+
+          '<td>'+r.time+'</td>'+
+          '<td>'+(r.dev>0?'<span style="color:#d97706;font-weight:700">Yes ('+r.dev+')</span>':'<span style="color:#64748b">No</span>')+'</td>'+
+          '<td>'+(r.sec?'<span style="color:#dc2626;font-weight:700">YES</span>':'<span style="color:#64748b">No</span>')+'</td>'+
+          '<td style="font-size:.77rem;color:#475569">'+notes+'</td>'+
+          '</tr>';
+      }).join('')
+    : '<tr><td colspan="6" class="no-data">No device or security issues in the current filter.</td></tr>';
+}
+
+// ═══════════════════════════════════════════════════════
+// TABS
+// ═══════════════════════════════════════════════════════
+function showTab(id, btn) {
+  document.querySelectorAll('.tab-content').forEach(function(t){t.classList.remove('active')});
+  document.querySelectorAll('.tab').forEach(function(b){b.classList.remove('active')});
+  document.getElementById(id).classList.add('active');
+  btn.classList.add('active');
+}
+
+// ═══════════════════════════════════════════════════════
+// DOWNLOAD
+// ═══════════════════════════════════════════════════════
+var CSV_HEADERS = ['Date','LGA','Time','Survey','Activities','Location Status',
+  'Distance (km)','Reason Outside LGA','Wards','Settlements','Households Visited',
+  'Device Issues','Security Incident','Device Notes','Security Notes'];
+
+function toCSVRow(r) {
+  return [
+    r.date, r.lga, r.time, r.survey, r.acts.join('; '), r.loc,
+    r.dist.toFixed(1), r.reason,
+    r.wards !== null && r.wards !== undefined ? r.wards : '',
+    r.settle !== null && r.settle !== undefined ? r.settle : '',
+    r.hh !== null && r.hh !== undefined ? r.hh : '',
+    r.dev, r.sec ? 'Yes' : 'No', r.devNote, r.secNote
+  ].map(function(v){return '"'+String(v).replace(/"/g,'""')+'"'}).join(',');
+}
+
+function triggerDownload(csv, filename) {
+  var blob = new Blob(['﻿'+csv], {type:'text/csv;charset=utf-8;'});
+  var url  = URL.createObjectURL(blob);
+  var a    = document.createElement('a');
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click();
+  document.body.removeChild(a); URL.revokeObjectURL(url);
+}
+
+function downloadLGACSV(lga) {
+  var lgaRecs = records.filter(function(r){return r.lga===lga});
+  if (!lgaRecs.length) { alert('No records found for '+lga+'.'); return; }
+  var csv = [CSV_HEADERS.join(',')].concat(lgaRecs.map(toCSVRow)).join('\n');
+  triggerDownload(csv, 'SARMAAN_'+lga.replace(/\s+/g,'_')+'_Report.csv');
+}
+
+function downloadAllCSV() {
+  var data = filtered();
+  if (!data.length) { alert('No records to download for the current filter.'); return; }
+  var csv = [CSV_HEADERS.join(',')].concat(data.map(toCSVRow)).join('\n');
+  var tag = userRole === 'lga' ? currentUser.replace(/\s+/g,'_') : 
+            (activeDates[0]==='all' ? 'All_Dates' : activeDates.join('_'));
+  triggerDownload(csv, 'SARMAAN_Zamfara_AMR_'+tag+'.csv');
+}
+
+// ═══════════════════════════════════════════════════════
+// LGA REPORT CARD MODAL
+// ═══════════════════════════════════════════════════════
+function openLGAReport(lga) {
+  var lgaData = records.filter(function(r){return r.lga===lga});
+  if (!lgaData.length) {
+    alert('No records found for '+lga+'.');
+    return;
+  }
+  
+  // Set LGA name
+  document.getElementById('modalLGAName').textContent = lga + ' LGA Report Card';
+  
+  // Set report period
+  var dates = [...new Set(lgaData.map(function(r){return r.date}))].sort();
+  var periodText = dates.length === 1 
+    ? (DL[dates[0]] || dates[0])
+    : (DL[dates[0]] || dates[0]) + ' - ' + (DL[dates[dates.length-1]] || dates[dates.length-1]);
+  document.getElementById('modalReportPeriod').textContent = periodText;
+  
+  // Calculate stats
+  var totalReports = lgaData.length;
+  var expectedReports = dates.length;
+  var complianceRate = Math.round((totalReports / expectedReports) * 100);
+  var outsideCount = lgaData.filter(function(r){return r.loc==='Outside LGA'}).length;
+  var avgDistance = lgaData.length 
+    ? (lgaData.reduce(function(s,r){return s+r.dist},0)/lgaData.length).toFixed(1)
+    : 0;
+  var deviceIssues = lgaData.reduce(function(s,r){return s+r.dev},0);
+  var securityIncidents = lgaData.filter(function(r){return r.sec}).length;
+  
+  // Render info cards
+  var infoCardsHTML = [
+    '<div class="info-card highlight"><div class="info-card-label">Total Reports</div>' +
+      '<div class="info-card-value">'+totalReports+'</div>' +
+      '<div class="info-card-sub">out of '+expectedReports+' expected</div></div>',
+    '<div class="info-card '+(complianceRate>=80?'success':complianceRate>=50?'warning':'danger')+'">'+
+      '<div class="info-card-label">Compliance Rate</div>' +
+      '<div class="info-card-value">'+complianceRate+'%</div>' +
+      '<div class="info-card-sub">'+(complianceRate>=80?'Excellent':complianceRate>=50?'Fair':'Poor')+' submission</div></div>',
+    '<div class="info-card"><div class="info-card-label">Outside LGA</div>' +
+      '<div class="info-card-value">'+outsideCount+'</div>' +
+      '<div class="info-card-sub">reports filed outside</div></div>',
+    '<div class="info-card"><div class="info-card-label">Avg Distance</div>' +
+      '<div class="info-card-value">'+avgDistance+'<small style="font-size:.7rem">km</small></div>' +
+      '<div class="info-card-sub">from LGA center</div></div>',
+    '<div class="info-card '+(deviceIssues>0?'warning':'success')+'"><div class="info-card-label">Device Issues</div>' +
+      '<div class="info-card-value">'+deviceIssues+'</div>' +
+      '<div class="info-card-sub">'+(deviceIssues===0?'None reported':'logged')+'</div></div>',
+    '<div class="info-card '+(securityIncidents>0?'danger':'success')+'"><div class="info-card-label">Security</div>' +
+      '<div class="info-card-value">'+securityIncidents+'</div>' +
+      '<div class="info-card-sub">'+(securityIncidents===0?'No incidents':'incidents')+'</div></div>'
+  ].join('');
+  document.getElementById('modalInfoCards').innerHTML = infoCardsHTML;
+  
+  // Activity breakdown
+  var activityCounts = {};
+  lgaData.forEach(function(r){
+    r.acts.forEach(function(act){
+      activityCounts[act] = (activityCounts[act] || 0) + 1;
+    });
+  });
+  var activityIcons = {
+    'Training':'🎓','Transit':'🚗','Field Coordination':'🗺️',
+    'Supervision & QA':'✓','Data Monitoring':'📊','Stakeholder Engagement':'🤝',
+    'Team Management':'👥','Problem Solving':'🔧','Logistics':'📦','Other':'📝'
+  };
+  var activityHTML = Object.keys(activityCounts).map(function(act){
+    return '<div class="activity-stat"><div class="activity-stat-icon">'+(activityIcons[act]||'📝')+'</div>' +
+      '<div class="activity-stat-label">'+act+'</div>' +
+      '<div class="activity-stat-value">'+activityCounts[act]+'</div></div>';
+  }).join('');
+  document.getElementById('modalActivityStats').innerHTML = activityHTML;
+  document.getElementById('modalActivityCount').textContent = totalReports + ' Report' + (totalReports!==1?'s':'');
+  
+  // Timeline
+  var timelineHTML = lgaData.map(function(r){
+    var dateObj = new Date(r.date);
+    var monthNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    var day = dateObj.getDate();
+    var month = monthNames[dateObj.getMonth()];
+    
+    return '<div class="timeline-item">' +
+      '<div class="timeline-date">' +
+        '<div class="day">'+day+'</div>' +
+        '<div class="month">'+month+'</div>' +
+      '</div>' +
+      '<div class="timeline-content">' +
+        '<div class="timeline-title">'+r.time+' · '+actBadges(r.acts)+'</div>' +
+        '<div class="timeline-details">' +
+          '<span class="badge '+(r.loc==='Outside LGA'?'b-outside':'b-inside')+'">'+r.loc+'</span>' +
+          '<span class="badge b-data">Distance: '+r.dist.toFixed(1)+'km</span>' +
+          (r.wards !== null ? '<span class="badge b-field">'+r.wards+' Wards</span>' : '') +
+          (r.settle !== null ? '<span class="badge b-field">'+r.settle+' Settlements</span>' : '') +
+          (r.hh !== null ? '<span class="badge b-field">'+r.hh+' Households</span>' : '') +
+        '</div>' +
+        (r.reason ? '<div class="timeline-reason">📍 '+r.reason+'</div>' : '') +
+      '</div>' +
+    '</div>';
+  }).join('');
+  document.getElementById('modalTimeline').innerHTML = timelineHTML;
+  
+  // Issues section
+  var issues = lgaData.filter(function(r){return r.dev>0 || r.sec});
+  var issuesHTML = '';
+  if (issues.length === 0) {
+    issuesHTML = '<div class="issues-box no-issues">' +
+      '<div class="issues-header">' +
+        '<span class="issues-icon">✅</span>' +
+        '<h4 class="issues-title">No Issues Reported</h4>' +
+      '</div>' +
+      '<p style="font-size:.85rem;color:#15803d;margin:0">All field activities proceeded without device or security incidents.</p>' +
+    '</div>';
+  } else {
+    var issueItems = issues.map(function(r){
+      var items = [];
+      if (r.dev > 0) {
+        items.push('<div class="issue-item">' +
+          '<div class="issue-type">🔧 Device Issue · '+(DL[r.date]||r.date)+'</div>' +
+          '<div class="issue-desc">'+(r.devNote || 'Device technical issue reported')+'</div>' +
+        '</div>');
+      }
+      if (r.sec) {
+        items.push('<div class="issue-item" style="border-left-color:#dc2626">' +
+          '<div class="issue-type" style="color:#dc2626">🚨 Security Incident · '+(DL[r.date]||r.date)+'</div>' +
+          '<div class="issue-desc">'+(r.secNote || 'Security incident reported')+'</div>' +
+        '</div>');
+      }
+      return items.join('');
+    }).join('');
+    
+    issuesHTML = '<div class="issues-box">' +
+      '<div class="issues-header">' +
+        '<span class="issues-icon">⚠️</span>' +
+        '<h4 class="issues-title">'+issues.length+' Issue'+(issues.length!==1?'s':'')+' Reported</h4>' +
+      '</div>' +
+      issueItems +
+    '</div>';
+  }
+  document.getElementById('modalIssues').innerHTML = issuesHTML;
+  
+  // Set download button
+  document.getElementById('modalDownloadBtn').onclick = function(){
+    downloadLGACSV(lga);
+  };
+  
+  // Show modal
+  document.getElementById('lgaReportModal').style.display = 'block';
+  document.body.style.overflow = 'hidden';
+}
+
+function closeReportModal(event) {
+  if (!event || event.target.id === 'lgaReportModal' || !event.target.closest) {
+    document.getElementById('lgaReportModal').style.display = 'none';
+    document.body.style.overflow = 'auto';
+  }
+}
+
+// ═══════════════════════════════════════════════════════
+// MASTER RENDER
+// ═══════════════════════════════════════════════════════
+function renderAll() {
+  var data = filtered();
+  renderKPIs(data);
+  renderMatrix(data);
+  chartSubmissions(data);
+  chartActivity(data);
+  chartDistance(data);
+  renderTables(data);
+}
+
+// ═══════════════════════════════════════════════════════
+// MAP FUNCTIONS (FOR LC SUPERVISORY DASHBOARD)
+// ═══════════════════════════════════════════════════════
+let mapInstance = null;
+let mapVisible = false;
+
+function toggleMap() {
+  const mapContainer = document.getElementById('mapContainer');
+  const btnText = document.getElementById('mapBtnText');
+  
+  mapVisible = !mapVisible;
+  
+  if (mapVisible) {
+    mapContainer.classList.add('show');
+    btnText.textContent = 'Hide Field Visit Locations Map';
+    
+    // Initialize map if not already done
+    if (!mapInstance) {
+      setTimeout(initializeMap, 100);
+    } else {
+      mapInstance.invalidateSize();
+    }
+  } else {
+    mapContainer.classList.remove('show');
+    btnText.textContent = 'Show Field Visit Locations Map';
+  }
+}
+
+function initializeMap() {
+  if (mapInstance) {
+    mapInstance.remove();
+  }
+  
+  // Initialize Leaflet map centered on Zamfara State
+  mapInstance = L.map('mapContainer').setView([12.1704, 6.6599], 8);
+  
+  // Define base layers
+  const osmLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+    maxZoom: 19
+  });
+  
+  const satelliteLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+    attribution: 'Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community',
+    maxZoom: 19
+  });
+  
+  const hybridLayer = L.layerGroup([
+    L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+      maxZoom: 19
+    }),
+    L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}', {
+      maxZoom: 19
+    })
+  ]);
+  
+  const topoLayer = L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {
+    attribution: 'Map data: &copy; <a href="https://openstreetmap.org/copyright">OpenStreetMap</a>, <a href="http://viewfinderpanoramas.org">SRTM</a> | Map style: &copy; <a href="https://opentopomap.org">OpenTopoMap</a>',
+    maxZoom: 17
+  });
+  
+  // Add default layer (Hybrid Google-style)
+  hybridLayer.addTo(mapInstance);
+  
+  // Layer control
+  const baseLayers = {
+    'Street Map': osmLayer,
+    'Satellite': satelliteLayer,
+    'Hybrid (Google-style)': hybridLayer,
+    'Topographic': topoLayer
+  };
+  
+  L.control.layers(baseLayers).addTo(mapInstance);
+  
+  // Get supervisor visit data with valid coordinates
+  const visitData = records.filter(r => {
+    return r.latitude && r.longitude && 
+           !isNaN(parseFloat(r.latitude)) && !isNaN(parseFloat(r.longitude));
+  });
+  
+  // Color mapping for different LGAs
+  const lgaColors = {
+    'Zurmi': '#ef4444', 'Bakura': '#f97316', 'Birnin Magaji': '#f59e0b',
+    'Gusau': '#84cc16', 'Kaura Namoda': '#10b981', 'Talata Mafara': '#14b8a6',
+    'Gummi': '#06b6d4', 'Tsafe': '#0ea5e9', 'Shinkafi': '#3b82f6',
+    'Maradun': '#6366f1', 'Bukkuyum': '#8b5cf6', 'Maru': '#a855f7'
+  };
+  
+  // Add markers for each visit location
+  visitData.forEach(visit => {
+    const lat = parseFloat(visit.latitude);
+    const lng = parseFloat(visit.longitude);
+    const color = lgaColors[visit.lga] || '#64748b';
+    
+    // Create custom marker
+    const marker = L.circleMarker([lat, lng], {
+      radius: 8,
+      fillColor: color,
+      color: '#fff',
+      weight: 2,
+      opacity: 1,
+      fillOpacity: 0.8
+    }).addTo(mapInstance);
+    
+    // Add popup with visit details
+    const popupContent = `
+      <div style="min-width:200px">
+        <strong style="color:${color};font-size:1.1em">${visit.lga}</strong><br>
+        <strong>Date:</strong> ${DL[visit.date] || visit.date}<br>
+        <strong>Time:</strong> ${visit.time}<br>
+        <strong>Location:</strong> ${visit.loc}<br>
+        <strong>Distance from LGA:</strong> ${visit.dist.toFixed(1)} km<br>
+        <strong>Activities:</strong> ${visit.acts.join(', ')}<br>
+        ${visit.reason ? '<strong>Reason:</strong> ' + visit.reason : ''}
+      </div>
+    `;
+    
+    marker.bindPopup(popupContent);
+  });
+  
+  // Add legend
+  const legend = L.control({ position: 'bottomright' });
+  legend.onAdd = function() {
+    const div = L.DomUtil.create('div', 'map-legend');
+    div.innerHTML = '<div class="map-legend-title">LGAs</div>';
+    
+    Object.keys(lgaColors).forEach(lga => {
+      div.innerHTML += `
+        <div class="legend-item">
+          <span class="legend-dot" style="background-color:${lgaColors[lga]}"></span>
+          <span>${lga}</span>
+        </div>
+      `;
+    });
+    
+    return div;
+  };
+  legend.addTo(mapInstance);
+  
+  // Fit bounds to show all markers with appropriate zoom level
+  if (visitData.length > 0) {
+    const bounds = L.latLngBounds(visitData.map(v => [parseFloat(v.latitude), parseFloat(v.longitude)]));
+    
+    // If a specific LGA is selected, zoom to ward level (higher zoom)
+    if (activeLGA && activeLGA !== 'all' && activeLGA !== '') {
+      // Ward-level zoom (zoom 12-14 shows ward details clearly)
+      mapInstance.fitBounds(bounds, { padding: [30, 30], maxZoom: 13 });
+    } else {
+      // LGA-level zoom when showing all LGAs
+      mapInstance.fitBounds(bounds, { padding: [50, 50] });
+    }
+  }
+}
+
+// ═══════════════════════════════════════════════════════
+// COMMUNITY MAPPING DATA (FOR PLANNED HH COVERAGE)
+// ═══════════════════════════════════════════════════════
+
+const COMMUNITY_MAPPING = {
+  "Anka|Yarsabaya|Tungar Bayi": 20,
+  "Anka|Yarsabaya|Daki Takwas": 14,
+  "Anka|Dangaladima|Hayin Tasha A": 18,
+  "Anka|Dangaladima|Limanchi": 15,
+  "Anka|Waramu|Shiyar Sabon Gari Waramu": 16,
+  "Anka|Waramu|Shiyar Galadima T Dangyaya": 17,
+  "Anka|Galadima|Shiyar Bagaruwa": 34,
+  "Anka|Galadima|Galadunchi 1": 58,
+  "Anka|Magaji|Sabon Garin Alin Garka B": 93,
+  "Anka|Magaji|Anka Emirates Idp Camp": 25,
+  "Bakura|Yargeda|Kabawa Tsohuwa": 27,
+  "Bakura|Yargeda|Bakin Masallaci Yargeda": 27,
+  "Bakura|Damri|Gidan Dikko": 12,
+  "Bakura|Damri|Gidan Malamai": 29,
+  "Bakura|Birnin Tudu|Shiyar Sarkin Malammai": 26,
+  "Bakura|Birnin Tudu|Malawama": 21,
+  "Bakura|Dankadu|Gidan Kade": 52,
+  "Bakura|Dankadu|Rumbar Ardo": 42,
+  "Bakura|Bakura|Duguzawa": 35,
+  "Bakura|Bakura|Shiyar Orphan And Less Previlege (O L P C": 39,
+  "Birnin Magaji/Kiyaw|Modomawa East|Gidan Dunya": 31,
+  "Birnin Magaji/Kiyaw|Modomawa East|Yar Dole A": 24,
+  "Birnin Magaji/Kiyaw|Modomawa East|G Kaiwa": 24,
+  "Birnin Magaji/Kiyaw|N Godel West|Tsahar Shehu A": 66,
+  "Birnin Magaji/Kiyaw|N Godel West|Shiyar Sarkin Diya West": 43,
+  "Birnin Magaji/Kiyaw|N Godel West|Shiyar Sarkin Diya North": 45,
+  "Birnin Magaji/Kiyaw|N Godel West|Shiyar Ajiya": 43,
+  "Birnin Magaji/Kiyaw|Birnin Magaji|Tsamiyar Dutsi": 22,
+  "Birnin Magaji/Kiyaw|Birnin Magaji|Shiyar Liman Makera": 28,
+  "Birnin Magaji/Kiyaw|Modomawa West|G Ande": 5,
+  "Birnin Magaji/Kiyaw|Modomawa West|Dadin Huntu C": 22,
+  "Bukkuyum|Yashi|Tega": 44,
+  "Bukkuyum|Yashi|Gangare": 48,
+  "Bukkuyum|Zauma|Baraya Hakimi": 16,
+  "Bukkuyum|Zauma|Basansan Shiyar Mamman Gunta": 22,
+  "Bukkuyum|Bukkuyum|Low Cost Yamma": 23,
+  "Bukkuyum|Bukkuyum|Dangaladima Gidan Zartu": 34,
+  "Bukkuyum|Kyaram|Marke": 22,
+  "Bukkuyum|Kyaram|Zugu Kanwuri": 58,
+  "Bukkuyum|Adabka|Shiyar Madawaki Adabka": 33,
+  "Bukkuyum|Adabka|Bakin Kasuwa": 10,
+  "Bungudu|Furfuri Kwaikwai|Bakin Dumau": 25,
+  "Bungudu|Furfuri Kwaikwai|Gidan Jikan Kunne": 28,
+  "Bungudu|Tofa|Gidan Dan Birgi": 31,
+  "Bungudu|Tofa|Bukkokin Mai Ganga": 13,
+  "Bungudu|Bungudu|Gidan Malammai 11": 31,
+  "Bungudu|Bungudu|Mallamawa 11": 45,
+  "Bungudu|Kotorkoshi|Tazame Daji": 31,
+  "Bungudu|Kotorkoshi|Gulubba": 56,
+  "Bungudu|Samawa|Sabon Garin Gidan Maitsaune": 19,
+  "Bungudu|Samawa|Birnin Gyade 1": 33,
+  "Gummi|Falale|Balkwai A": 58,
+  "Gummi|Falale|Kabawar Hausawa": 28,
+  "Gummi|Uban Dawaki|Yargijiya": 45,
+  "Gummi|Uban Dawaki|Bunkuche": 19,
+  "Gummi|Rafi|Makera Fari": 29,
+  "Gummi|Rafi|Lemawa Ubankasa": 31,
+  "Gummi|Gyalange|Unguwar Hassan Ta Arewa": 22,
+  "Gummi|Gyalange|Bayan Gida": 27,
+  "Gummi|Gamo|Unwala": 29,
+  "Gummi|Gamo|Gamo Yamma B 2": 22,
+  "Gusau|Rijiya|Bulunku Almajiri School": 30,
+  "Gusau|Rijiya|Tsunami Garejin Mai Lena": 37,
+  "Gusau|Rijiya|Tsunami Area": 37,
+  "Gusau|Tudun Wada|Malale Gidan Kaji": 38,
+  "Gusau|Tudun Wada|Yarmaibakware": 27,
+  "Gusau|Galadima|Unguwar Matawalle Ruggar Fulani": 19,
+  "Gusau|Galadima|Unguwar Yarima Bayan Gidan Kaji": 32,
+  "Gusau|Mayana|Hayin Asibitin Shagari": 40,
+  "Gusau|Mayana|Zawuyya Babba": 38,
+  "Gusau|Sabon Gari|Hizburahim": 31,
+  "Gusau|Sabon Gari|Emir Of Dansadau Area": 18,
+  "Kaura Namoda|Sakajiki|Yamutsawa": 60,
+  "Kaura Namoda|Sakajiki|Kadade G Bugaje": 14,
+  "Kaura Namoda|Kyambarawa|Kasuwardaji Yammachi": 11,
+  "Kaura Namoda|Kyambarawa|Kyanbarawa Injin Gabas": 11,
+  "Kaura Namoda|Kungurki|Unguwar Kanawa B": 17,
+  "Kaura Namoda|Kungurki|Shiyar Marafa": 60,
+  "Kaura Namoda|Gabake|Shiyar Magayaki": 49,
+  "Kaura Namoda|Gabake|Getso": 47,
+  "Kaura Namoda|Sarkin Mafara-Sarkin Baura|Kofar Modomawa B": 27,
+  "Kaura Namoda|Sarkin Mafara-Sarkin Baura|Poly Quarters": 14,
+  "Maradun|Maradun South|Aci Adunkule": 27,
+  "Maradun|Maradun South|Bakin Tasha": 40,
+  "Maradun|Maradun South|Baiche A": 23,
+  "Maradun|Maradun South|Woman Center": 20,
+  "Maradun|Maradun South|Mallamawa": 78,
+  "Maradun|Dosara Birnin Kaya|Taludu": 12,
+  "Maradun|Maradun North|Gumawa Maradun B": 20,
+  "Maradun|Maradun North|Shiyar Mayaki": 23,
+  "Maradun|Maradun North|Gumawa Maradun A": 23,
+  "Maradun|Maradun North|Kofar Kyarawa": 44,
+  "Maru|Maru|Gida Goma": 40,
+  "Maru|Maru|Gss Maru": 36,
+  "Maru|Maru|Sagi": 36,
+  "Maru|Ruwan Doruma|Kadaddaba Y": 35,
+  "Maru|Ruwan Doruma|Yar Duwa": 34,
+  "Maru|Ruwan Doruma|Unguwar Muazu": 35,
+  "Maru|Mayanchi|Unguwar Lemu": 47,
+  "Maru|Mayanchi|Durumin Namahe": 29,
+  "Maru|Dankurmi|Gari": 9,
+  "Maru|Dankurmi|Ruggar": 9,
+  "Shinkafi|Jangeru|Baiche C": 27,
+  "Shinkafi|Jangeru|Baiche B": 27,
+  "Shinkafi|Shinkafi South|Maberaya South A": 34,
+  "Shinkafi|Shinkafi South|Bayan Asibiti": 27,
+  "Shinkafi|Shanawa|Shiyar Baraya A": 28,
+  "Shinkafi|Shanawa|Shiyar Baraya C": 37,
+  "Shinkafi|Birnin Yero|Sabon Gari 1": 32,
+  "Shinkafi|Birnin Yero|Sabon Gari 2": 32,
+  "Shinkafi|Shinkafi North|Gidan Gwaba": 34,
+  "Shinkafi|Shinkafi North|Government Secondary School Shinkafi": 35,
+  "Talata Mafara|Ruwan Bore-Mirkidi|Shiyar Alhaji Bako": 34,
+  "Talata Mafara|Ruwan Bore-Mirkidi|Sabuwar Dagoje": 33,
+  "Talata Mafara|Kagara|Shiyar Liman Ilyasu": 32,
+  "Talata Mafara|Kagara|Tsaune Shiyar Musa Rafi": 24,
+  "Talata Mafara|Morai|Shiyar Ajiya D": 28,
+  "Talata Mafara|Morai|Shiyar Marafa D": 41,
+  "Talata Mafara|Gusari-Garbadu|Yarkuka B": 42,
+  "Talata Mafara|Gusari-Garbadu|Tudun Makera": 28,
+  "Talata Mafara|Sauna Ruwan Gora|Inwala": 18,
+  "Talata Mafara|Sauna Ruwan Gora|Tsanun Yamma": 29,
+  "Tsafe|Yandoton Daji|Awalar Yandoto": 12,
+  "Tsafe|Yandoton Daji|Birnin Ruwa": 12,
+  "Tsafe|Yandoton Daji|Dan Kasheshe": 39,
+  "Tsafe|Bilbis|Kucheri Gabas": 12,
+  "Tsafe|Bilbis|Magazu Yamma": 24,
+  "Tsafe|Bilbis|Magazu Gabas": 60,
+  "Tsafe|Chediya|Hayin Tumbi Inec": 61,
+  "Tsafe|Chediya|Aliya Community 1": 9,
+  "Tsafe|Tsafe Central|Shiyar Nomau": 40,
+  "Tsafe|Tsafe Central|Shiyar Yandoto": 41,
+  "Zurmi|Boko|Sagi Bakin Kotu": 31,
+  "Zurmi|Boko|Kadawa B": 31,
+  "Zurmi|Boko|Kadawa 1": 31,
+  "Zurmi|Dauran Birnin Tsaba|Dauran Marna": 31,
+  "Zurmi|Dauran Birnin Tsaba|Dauran Shiyar Yan Ruwa": 27,
+  "Zurmi|Moriki|Sabon Gari 4 Moriki": 36,
+  "Zurmi|Moriki|Ggcs Moriki": 31,
+  "Zurmi|Kanwa|Sabon Gari Jabanda 1": 31,
+  "Zurmi|Kanwa|Gidan A'I Kanwa": 31,
+  "Zurmi|Kanwa|Sabon Gari Jabanda 3": 31
+};
+
+// ═══════════════════════════════════════════════════════
+// QC DATA FETCHING (FOR QC MONITORING DASHBOARD)
+// ═══════════════════════════════════════════════════════
+
+// ╔═══════════════════════════════════════════════════════════════════════╗
+// ║                     ⚠️ CONFIGURATION REQUIRED                          ║
+// ╠═══════════════════════════════════════════════════════════════════════╣
+// ║  STEP 1: Replace QC_DATA_URL below with your actual KoboToolbox URL   ║
+// ║                                                                        ║
+// ║  WHERE TO FIND YOUR URL:                                               ║
+// ║  1. Login to KoboToolbox (https://kf.kobotoolbox.org)                 ║
+// ║  2. Open your QC Monitoring form                                       ║
+// ║  3. Click "DATA" tab at the top                                        ║
+// ║  4. Click "API" button                                                 ║
+// ║  5. Copy the endpoint URL (should end with .json)                      ║
+// ║  6. Add &limit=30000 to fetch all records                              ║
+// ║                                                                        ║
+// ║  RECOMMENDED FORMAT (JSON):                                            ║
+// ║  https://kf.kobotoolbox.org/api/v2/assets/YOUR_ASSET_ID/data.json?limit=30000
+// ║                                                                        ║
+// ║  YOUR FORMAT (XLSX - may have CORS issues):                            ║
+// ║  https://kf.kobotoolbox.org/api/v2/assets/YOUR_ASSET_ID/export-settings/YOUR_EXPORT_ID/data.xlsx
+// ║                                                                        ║
+// ║  STEP 2: If your form requires authentication, paste API token below  ║
+// ║  (Find in: Account → Security → API Token)                             ║
+// ║  If your form is PUBLIC, leave QC_KOBO_TOKEN as empty string ''       ║
+// ╚═══════════════════════════════════════════════════════════════════════╝
+
+// 👇 PASTE YOUR QC KOBOTOOLBOX URL HERE (replace the entire URL below)
+const QC_DATA_URL = 'https://kf.kobotoolbox.org/api/v2/assets/aNR4xTJXwRQXwkKaNwZqJE/export-settings/esFNEaa3FuKUnGfaoKp5xtT/data.xlsx';
+
+let qcData = [];
+
+async function fetchQCData(silent) {
+  var btn = document.getElementById('qcFetchBtn');
+  var statusDiv = document.getElementById('qcStatus');
+
+  if (!silent && btn) {
+    btn.innerHTML = '<span class="spinner"></span> Fetching QC Data...';
+    btn.disabled = true;
+  }
+  if (statusDiv) statusDiv.textContent = silent ? 'Auto-fetching QC data…' : 'Connecting to KoboToolbox via proxy...';
+
+  try {
+    // Proxy route served by the Flask app (app.py)
+    const proxyUrl = '/proxy?url=' + encodeURIComponent(QC_DATA_URL);
+
+    const response = await fetch(proxyUrl, {
+      cache: 'no-cache',
+      headers: {
+        'Accept': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, */*'
+      }
+    });
+
+    if (!response.ok) {
+      if (response.status === 0 || response.type === 'error') {
+        throw new Error('Proxy server error. Please check the server logs.');
+      }
+
+      const errorMsg = response.status === 404 ?
+        'Not Found (404): Check that the URL is correct' :
+        response.status === 403 ?
+        'Access Denied (403): URL may require authentication' :
+        'HTTP ' + response.status + ': ' + response.statusText;
+      throw new Error(errorMsg);
+    }
+
+    if (statusDiv) statusDiv.textContent = 'Processing Excel file...';
+
+    // Get Excel file as array buffer
+    const buffer = await response.arrayBuffer();
+
+    if (!buffer || buffer.byteLength < 100) {
+      throw new Error('File is empty or too small. Please check the KoboToolbox export settings.');
+    }
+
+    // Check if XLSX library is loaded
+    if (typeof XLSX === 'undefined') {
+      throw new Error('SheetJS library not loaded. Check your internet connection.');
+    }
+
+    // Parse Excel file
+    const workbook = XLSX.read(new Uint8Array(buffer), { type: 'array', cellDates: true });
+
+    // Get the first non-polygon sheet
+    const sheetName = workbook.SheetNames.find(n =>
+      !n.toLowerCase().includes('polygon') && !n.toLowerCase().includes('g_poly')
+    ) || workbook.SheetNames[0];
+
+    const sheet = workbook.Sheets[sheetName];
+
+    // Convert to JSON
+    qcData = XLSX.utils.sheet_to_json(sheet, { raw: false, defval: '' });
+
+    if (qcData.length === 0) {
+      if (statusDiv) statusDiv.innerHTML = '<strong style="color:#f59e0b">⚠️ No Data:</strong><br>' +
+        'The Excel file contains 0 records. Check if your form has submissions.';
+      return;
+    }
+
+    // Save to localStorage cache
+    try {
+      localStorage.setItem('qc_data_cache', JSON.stringify(qcData));
+      localStorage.setItem('qc_data_time',  String(Date.now()));
+    } catch(cacheErr) {
+      console.warn('QC cache write failed (storage full?):', cacheErr);
+    }
+
+    if (statusDiv) statusDiv.textContent = '✓ Successfully loaded ' + qcData.length + ' records from KoboToolbox';
+
+    // Process and display QC data
+    processQCData(qcData);
+
+    var lastUpd = document.getElementById('qcLastUpdated');
+    if (lastUpd) lastUpd.textContent = 'Data loaded · ' + new Date().toLocaleTimeString();
+
+  } catch(err) {
+    const isProxyError = err.message.includes('Proxy server error');
+    if (statusDiv) {
+      statusDiv.innerHTML = '<strong style="color:#ef4444">✗ Fetch failed:</strong> ' + err.message +
+        (isProxyError
+          ? '<br><br><strong>⚠️ Check the Render service logs for details.</strong>'
+          : '<br><br><strong>💡 Alternative:</strong> <a href="' + QC_DATA_URL + '" target="_blank" style="color:#60a5fa;text-decoration:underline">Download the Excel file manually</a> and process it offline.'
+        );
+    }
+    console.error('fetchQCData error:', err);
+  } finally {
+    if (!silent && btn) {
+      btn.innerHTML = '↻ Load QC Data from KoboToolbox';
+      btn.disabled = false;
+    }
+  }
+}
+
+function processQCData(data) {
+  console.log('Processing QC data:', data.length, 'records');
+  
+  // Calculate comprehensive metrics
+  const totalHouseholds = data.length;
+  const lgas = new Set();
+  const wards = new Set();
+  const communities = new Set();
+  const enumerators = new Set();
+  
+  let totalChildren = 0;
+  let totalMothers = 0;
+  let validationApproved = 0;
+  let validationPending = 0;
+  let validationRejected = 0;
+  let duplicateHouseholds = 0;
+  
+  // Track for duplicates
+  const householdIds = new Map();
+  
+  data.forEach(record => {
+    // Geographic coverage
+    const lga = record['Confirm your LGA'] || record['Q3. Local Government Area'] || '';
+    const ward = record['Confirm your ward'] || record['Q4. Ward'] || '';
+    const community = record['Confirm your community'] || record['Q5. Community Name'] || '';
+    const enumerator = record['username'] || record['enum_name'] || '';
+    
+    if (lga) lgas.add(lga);
+    if (ward) wards.add(ward);
+    if (community) communities.add(community);
+    if (enumerator) enumerators.add(enumerator);
+    
+    // Count children and mothers
+    const childCount = parseInt(record['Q47. Children 0-59m'] || 0);
+    const motherCount = parseInt(record['Q50. Mothers/caregivers enrolled'] || 0);
+    totalChildren += childCount;
+    totalMothers += motherCount;
+    
+    // Validation status (check multiple possible column names and values)
+    const validationStatus = record['_validation_status'] || record['validation_status'] || '';
+    const statusLower = validationStatus.toLowerCase().trim();
+    
+    // More flexible status matching
+    if (statusLower.includes('approv') && !statusLower.includes('not')) {
+      validationApproved++;
+    } else if (statusLower.includes('pending') || statusLower.includes('ongoing') || 
+               statusLower.includes('on hold') || statusLower.includes('hold') || statusLower === '') {
+      validationPending++;
+    } else if (statusLower.includes('reject') || statusLower.includes('not approv')) {
+      validationRejected++;
+    }
+    
+    // Debug: Log unique validation statuses (only first 5)
+    if (validationStatus && data.indexOf(record) < 5) {
+      console.log('Validation Status Found:', validationStatus);
+    }
+    
+    // Check for duplicate household IDs
+    const householdId = record['unique_code'] || record['Household ID'] || '';
+    if (householdId) {
+      householdIds.set(householdId, (householdIds.get(householdId) || 0) + 1);
+    }
+  });
+  
+  // Count duplicates
+  householdIds.forEach((count, id) => {
+    if (count > 1) duplicateHouseholds += count;
+  });
+  
+  // Update all metrics on the page
+  // Note: Old metric cards have been removed from HTML
+  
+  // Display comprehensive data preview
+  displayQCDataPreview(data, {
+    totalHouseholds,
+    lgas: lgas.size,
+    wards: wards.size,
+    communities: communities.size,
+    enumerators: enumerators.size,
+    totalChildren,
+    totalMothers,
+    validationApproved,
+    validationPending,
+    validationRejected,
+    duplicateHouseholds
+  });
+}
+
+function displayQCDataPreview(data, metrics) {
+  const previewDiv = document.getElementById('qcDataPreview');
+  
+  // DEBUG: Log available columns (first record only)
+  if (data.length > 0) {
+    console.log('=== AVAILABLE COLUMNS ===');
+    const columns = Object.keys(data[0]);
+    const q57Cols = columns.filter(col => col.toLowerCase().includes('azithromycin') || col.includes('Q57'));
+    console.log('Q57/Azithromycin related columns:', q57Cols.length > 0 ? q57Cols : 'NONE FOUND');
+    if (q57Cols.length === 0) {
+      console.log('All columns containing "57":', columns.filter(col => col.includes('57')));
+    }
+  }
+  
+  // Identify QC Issues (records with potential problems)
+  allQCIssues = [];
+  const lgas = new Set();
+  const issueTypes = new Set();
+  const validationStatuses = new Set();
+  
+  data.forEach(record => {
+    const lga = record['Confirm your LGA'] || record['Q3. Local Government Area'] || 'Unknown';
+    const ward = record['Confirm your ward'] || record['Q4. Ward'] || 'Unknown';
+    const community = record['Confirm your community'] || record['Q5. Community Name'] || 'Unknown';
+    const householdId = record['unique_code'] || record['Household ID'] || record['_id'] || 'N/A';
+    const enumerator = record['username'] || record['enum_name'] || 'Unknown';
+    const validationStatus = record['_validation_status'] || record['validation_status'] || 'Pending Review';
+    
+    lgas.add(lga);
+    validationStatuses.add(validationStatus);
+    
+    // Check for various QC issues
+    const issues = [];
+    
+    // Issue 1: Urban settlement with no basic amenities
+    const settlementType = record['Q7. Type of Settlement'] || '';
+    const hasElectricity = record['Q8. Electricity'] || '';
+    const hasWater = record['Q9. Water'] || '';
+    const hasToilet = record['Q10. Toilet'] || '';
+    
+    if (settlementType.toLowerCase().includes('urban') && 
+        (!hasElectricity || hasElectricity === 'No') && 
+        (!hasWater || hasWater === 'No') && 
+        (!hasToilet || hasToilet === 'No')) {
+      issues.push('Urban-No Basic Amenities');
+    }
+    
+    // Issue 2: Missing GPS coordinates - Updated to use correct column name
+    const gpsCoords = record['Q9. GPS coordinates (capture from device)'] || 
+                      record['_Q9. GPS coordinates (capture from device)_latitude'] || 
+                      record['_Capture GPS location (Latitude & Longitude)_latitude'] || 
+                      record['latitude'];
+    const gpsLat = record['_Q9. GPS coordinates (capture from device)_latitude'] || record['latitude'];
+    const gpsLon = record['_Q9. GPS coordinates (capture from device)_longitude'] || record['longitude'];
+    
+    // Only flag if BOTH GPS field and lat/lon are missing
+    if (!gpsCoords && !gpsLat && !gpsLon) {
+      issues.push('Missing GPS Coordinates');
+    }
+    
+    // Issue 3: Count mismatches
+    const childrenReported = parseInt(record['Q47. Children 0-59m'] || 0);
+    const mothersReported = parseInt(record['Q50. Mothers/caregivers enrolled'] || 0);
+    if (childrenReported > 0 && mothersReported === 0) {
+      issues.push('Children Without Mothers');
+    }
+    
+    // Issue 4: Duplicate household ID (check if this ID appears multiple times)
+    const duplicateCount = data.filter(r => 
+      (r['unique_code'] || r['Household ID']) === householdId
+    ).length;
+    if (duplicateCount > 1 && householdId !== 'N/A') {
+      issues.push('Duplicate Household ID');
+    }
+    
+    // Issue 5: Validation rejected (more flexible matching)
+    const statusLower = validationStatus.toLowerCase().trim();
+    if (statusLower.includes('reject') || statusLower.includes('not approv')) {
+      issues.push('Validation Rejected');
+    }
+    
+    // Issue 6: Education-Occupation Mismatch
+    const education = record['Q13. What is the highest level of school you attended?'] || '';
+    const occupation = record['Q15. What is your main occupation?'] || '';
+    if (education === 'No Formal Education' && occupation === 'Professional/technical/managerial') {
+      issues.push('Education-Occupation Mismatch');
+    }
+    
+    // Issue 7: Incorrect phone date/time
+    const phoneFlag = record['🛑 Incorrect phone date/time'] || '';
+    if (phoneFlag) {
+      issues.push('Incorrect Phone Date/Time');
+    }
+    
+    // Issue 10: Azithromycin received or unknown
+    // Check multiple possible column names for Q57
+    const azmReceived = record['Q57. Did any of your children receive azithromycin?'] || 
+                        record['Q57. Did any of your children receive azithromycin'] ||
+                        record['Did any of your children receive azithromycin?'] || '';
+    
+    // Debug: Log Q57 value for first 3 records
+    if (data.indexOf(record) < 3) {
+      console.log('Q57 check - Record', data.indexOf(record) + 1, ':', azmReceived);
+    }
+    
+    if (azmReceived === 'Yes' || azmReceived === "Don't know" || azmReceived === "Don't Know") {
+      issues.push('Azithromycin Received/Unknown');
+    }
+    
+    // Add to issues array if any problems found
+    if (issues.length > 0) {
+      issues.forEach(issueType => {
+        issueTypes.add(issueType);
+        allQCIssues.push({
+          lga,
+          ward,
+          community,
+          householdId,
+          enumerator,
+          validationStatus,
+          issueType
+        });
+      });
+    }
+  });
+  
+  // Generate filter options
+  const lgaFilterOptions = Array.from(lgas).sort().map(lga => 
+    `<option value="${lga}">${lga}</option>`
+  ).join('');
+  
+  const issueTypeFilterOptions = Array.from(issueTypes).sort().map(type => 
+    `<option value="${type}">${type}</option>`
+  ).join('');
+  
+  const validationFilterOptions = Array.from(validationStatuses).sort().map(status => 
+    `<option value="${status}">${status}</option>`
+  ).join('');
+  
+  const qcIssuesCount = allQCIssues.length;
+  
+  // Generate QC issues rows
+  const qcIssuesRows = allQCIssues.map(issue => createQCIssueRow(issue)).join('');
+  
+  // Calculate Community Coverage Analysis
+  const communityCoverage = {};
+  data.forEach(record => {
+    const lga = (record['Confirm your LGA'] || record['Q3. Local Government Area'] || 'Unknown').trim();
+    const ward = (record['Confirm your ward'] || record['Q4. Ward'] || 'Unknown').trim();
+    const community = (record['Confirm your community'] || record['Q5. Community Name'] || 'Unknown').trim();
+    const communityCode = record['code'] || record['community_code'] || 'N/A';
+    
+    const key = `${lga}|${ward}|${community}|${communityCode}`;
+    
+    if (!communityCoverage[key]) {
+      communityCoverage[key] = {
+        lga: lga,
+        ward: ward,
+        community: community,
+        code: communityCode,
+        actualHH: 0,
+        plannedHH: 0 // Will be set from survey data if available
+      };
+    }
+    communityCoverage[key].actualHH++;
+  });
+  
+  // Calculate totals for community coverage
+  let totalPlannedHH = 0;
+  let totalReachedHH = 0;
+  let communitiesAtTarget = 0;
+  let totalCommunities = Object.keys(communityCoverage).length;
+  
+  // First pass: Calculate planned HH and totals
+  Object.values(communityCoverage).forEach(item => {
+    const lookupKey = `${item.lga}|${item.ward}|${item.community}`;
+    const planned = COMMUNITY_MAPPING[lookupKey] || item.actualHH;
+    
+    // Debug logging (can be removed after verification)
+    if (!COMMUNITY_MAPPING[lookupKey]) {
+      console.log(`⚠️ Community not found in mapping: "${lookupKey}"`);
+    }
+    
+    item.plannedHH = planned;
+    totalPlannedHH += planned;
+    totalReachedHH += item.actualHH;
+    
+    const coverage = planned > 0 ? ((item.actualHH / planned) * 100) : 0;
+    if (coverage >= 100) communitiesAtTarget++;
+  });
+  
+  // Generate community coverage table rows
+  const communityRows = Object.values(communityCoverage)
+    .sort((a, b) => a.lga.localeCompare(b.lga) || a.ward.localeCompare(b.ward))
+    .map(item => {
+      const planned = item.plannedHH;
+      const coverage = planned > 0 ? ((item.actualHH / planned) * 100).toFixed(1) : 0;
+      const status = coverage >= 100 ? 'Complete' : coverage >= 80 ? 'On Track' : 'Behind';
+      const statusColor = coverage >= 100 ? 'var(--green)' : coverage >= 80 ? 'var(--amber)' : 'var(--red)';
+      const statusBg = coverage >= 100 ? '#d1fae5' : coverage >= 80 ? '#fef3c7' : '#fee2e2';
+      
+      return `
+        <tr style="background:${statusBg}">
+          <td style="padding:10px">${item.lga}</td>
+          <td style="padding:10px">${item.ward}</td>
+          <td style="padding:10px">${item.community}</td>
+          <td style="padding:10px;text-align:center;font-weight:700">${planned}</td>
+          <td style="padding:10px;text-align:center;font-weight:700">${item.actualHH}</td>
+          <td style="padding:10px;text-align:center;font-weight:700">${coverage}%</td>
+          <td style="padding:10px;text-align:center">
+            <span style="display:inline-block;padding:4px 12px;border-radius:16px;font-size:0.75rem;font-weight:700;color:${statusColor};background:white;border:2px solid ${statusColor}">
+              ${status === 'Complete' ? '✅' : status === 'On Track' ? '⏳' : '⚠️'} ${status}
+            </span>
+          </td>
+        </tr>
+      `;
+    }).join('');
+  
+  const overallCoverage = totalPlannedHH > 0 ? ((totalReachedHH / totalPlannedHH) * 100).toFixed(0) : 0;
+  const coverageIcon = overallCoverage >= 100 ? '✅' : overallCoverage >= 80 ? '↗️' : '↘️';
+  
+  previewDiv.innerHTML = `
+    <div style="padding:20px">
+      
+      <!-- KPI Summary Cards -->
+      <div style="margin-bottom:30px">
+        <h3 style="color:var(--navy);margin-bottom:16px;border-bottom:3px solid var(--navy);padding-bottom:8px">� Key Performance Indicators</h3>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:16px;margin-top:20px">
+          
+          <div style="background:linear-gradient(135deg,#3b82f6,#2563eb);color:white;padding:20px;border-radius:12px;box-shadow:0 4px 12px rgba(59,130,246,0.3)">
+            <div style="font-size:0.75rem;opacity:0.9;margin-bottom:4px">TOTAL SUBMISSIONS</div>
+            <div style="font-size:2.5rem;font-weight:800;letter-spacing:-1px">${metrics.totalHouseholds.toLocaleString()}</div>
+          </div>
+          
+          <div style="background:linear-gradient(135deg,#10b981,#059669);color:white;padding:20px;border-radius:12px;box-shadow:0 4px 12px rgba(16,185,129,0.3)">
+            <div style="font-size:0.75rem;opacity:0.9;margin-bottom:4px">LGAs COVERED</div>
+            <div style="font-size:2.5rem;font-weight:800;letter-spacing:-1px">${metrics.lgas}</div>
+          </div>
+          
+          <div style="background:linear-gradient(135deg,#14b8a6,#0d9488);color:white;padding:20px;border-radius:12px;box-shadow:0 4px 12px rgba(20,184,166,0.3)">
+            <div style="font-size:0.75rem;opacity:0.9;margin-bottom:4px">WARDS COVERED</div>
+            <div style="font-size:2.5rem;font-weight:800;letter-spacing:-1px">${metrics.wards}</div>
+          </div>
+          
+          <div style="background:linear-gradient(135deg,#f97316,#ea580c);color:white;padding:20px;border-radius:12px;box-shadow:0 4px 12px rgba(249,115,22,0.3)">
+            <div style="font-size:0.75rem;opacity:0.9;margin-bottom:4px">COMMUNITIES</div>
+            <div style="font-size:2.5rem;font-weight:800;letter-spacing:-1px">${metrics.communities}</div>
+          </div>
+          
+          <div style="background:linear-gradient(135deg,#8b5cf6,#7c3aed);color:white;padding:20px;border-radius:12px;box-shadow:0 4px 12px rgba(139,92,246,0.3)">
+            <div style="font-size:0.75rem;opacity:0.9;margin-bottom:4px">ENUMERATORS</div>
+            <div style="font-size:2.5rem;font-weight:800;letter-spacing:-1px">${metrics.enumerators}</div>
+          </div>
+          
+        </div>
+      </div>
+      
+      <!-- Validation Status -->
+      <div style="margin-bottom:30px">
+        <h3 style="color:var(--navy);margin-bottom:16px;border-bottom:3px solid var(--navy);padding-bottom:8px">✅ Validation Status</h3>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;margin-top:20px">
+          
+          <div style="background:white;padding:20px;border-radius:12px;border-left:5px solid var(--green);box-shadow:0 2px 8px rgba(0,0,0,0.08)">
+            <div style="font-size:0.7rem;color:#64748b;font-weight:600;text-transform:uppercase;letter-spacing:0.5px">✅ APPROVED</div>
+            <div style="font-size:2.5rem;font-weight:800;color:var(--green);margin:8px 0">${metrics.validationApproved.toLocaleString()}</div>
+            <div style="display:inline-block;background:#d1fae5;color:#065f46;padding:4px 12px;border-radius:20px;font-size:0.8rem;font-weight:600">Ready for Analysis</div>
+          </div>
+          
+          <div style="background:white;padding:20px;border-radius:12px;border-left:5px solid var(--amber);box-shadow:0 2px 8px rgba(0,0,0,0.08)">
+            <div style="font-size:0.7rem;color:#64748b;font-weight:600;text-transform:uppercase;letter-spacing:0.5px">⏳ PENDING REVIEW</div>
+            <div style="font-size:2.5rem;font-weight:800;color:var(--amber);margin:8px 0">${metrics.validationPending.toLocaleString()}</div>
+            <div style="display:inline-block;background:#fef3c7;color:#92400e;padding:4px 12px;border-radius:20px;font-size:0.8rem;font-weight:600">Awaiting Review</div>
+          </div>
+          
+          <div style="background:white;padding:20px;border-radius:12px;border-left:5px solid var(--red);box-shadow:0 2px 8px rgba(0,0,0,0.08)">
+            <div style="font-size:0.7rem;color:#64748b;font-weight:600;text-transform:uppercase;letter-spacing:0.5px">❌ REJECTED</div>
+            <div style="font-size:2.5rem;font-weight:800;color:var(--red);margin:8px 0">${metrics.validationRejected.toLocaleString()}</div>
+            <div style="display:inline-block;background:#fee2e2;color:#991b1b;padding:4px 12px;border-radius:20px;font-size:0.8rem;font-weight:600">Requires Action</div>
+          </div>
+          
+        </div>
+      </div>
+      
+      <!-- Community Coverage Analysis -->
+      <div style="margin-bottom:30px">
+        <h3 style="color:var(--navy);margin-bottom:16px;border-bottom:3px solid var(--navy);padding-bottom:8px">
+          � Community Coverage Analysis
+        </h3>
+        
+        <!-- Coverage Summary Cards -->
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;margin:20px 0">
+          
+          <div style="background:white;padding:20px;border-radius:12px;box-shadow:0 2px 12px rgba(0,0,0,0.1)">
+            <div style="font-size:0.7rem;color:#64748b;font-weight:600;text-transform:uppercase;margin-bottom:8px">Total Planned HH</div>
+            <div style="font-size:2.5rem;font-weight:800;color:#1e40af">${totalPlannedHH.toLocaleString()}</div>
+          </div>
+          
+          <div style="background:white;padding:20px;border-radius:12px;box-shadow:0 2px 12px rgba(0,0,0,0.1)">
+            <div style="font-size:0.7rem;color:#64748b;font-weight:600;text-transform:uppercase;margin-bottom:8px">Total Reached HH</div>
+            <div style="font-size:2.5rem;font-weight:800;color:#059669">${totalReachedHH.toLocaleString()}</div>
+          </div>
+          
+          <div style="background:white;padding:20px;border-radius:12px;box-shadow:0 2px 12px rgba(0,0,0,0.1)">
+            <div style="font-size:0.7rem;color:#64748b;font-weight:600;text-transform:uppercase;margin-bottom:8px">Overall Coverage</div>
+            <div style="font-size:2.5rem;font-weight:800;color:#7c3aed">${overallCoverage}% ${coverageIcon}</div>
+          </div>
+          
+          <div style="background:white;padding:20px;border-radius:12px;box-shadow:0 2px 12px rgba(0,0,0,0.1)">
+            <div style="font-size:0.7rem;color:#64748b;font-weight:600;text-transform:uppercase;margin-bottom:8px">Communities @ Target</div>
+            <div style="font-size:2.5rem;font-weight:800;color:#ea580c">${communitiesAtTarget}/${totalCommunities}</div>
+          </div>
+          
+        </div>
+        
+        <!-- Detailed Community Coverage Table -->
+        <details style="margin-top:20px;background:white;padding:16px;border-radius:8px;box-shadow:0 2px 8px rgba(0,0,0,0.08)">
+          <summary style="cursor:pointer;font-weight:700;color:var(--navy);font-size:1rem;padding:8px;user-select:none">
+            🔍 Debug Info - Click to see data matching details
+          </summary>
+          <div style="margin-top:12px;font-size:0.9rem;color:#475569;line-height:1.8">
+            <strong>Coverage Calculation Method:</strong><br>
+            • Planned HH: Based on survey submissions count per community<br>
+            • Actual HH: Count of validated submissions<br>
+            • Coverage %: (Actual HH / Planned HH) × 100<br>
+            • Status: Complete (≥100%), On Track (≥80%), Behind (&lt;80%)
+          </div>
+        </details>
+        
+        <h4 style="margin-top:24px;margin-bottom:12px;color:#1e293b">Detailed Community Coverage</h4>
+        <div style="overflow-x:auto">
+          <table class="data-table" style="width:100%">
+            <thead>
+              <tr style="background:var(--navy)">
+                <th style="text-align:left;padding:12px;font-weight:700;color:white">LGA</th>
+                <th style="text-align:left;padding:12px;font-weight:700;color:white">Ward</th>
+                <th style="text-align:left;padding:12px;font-weight:700;color:white">Community Name</th>
+                <th style="text-align:center;padding:12px;font-weight:700;color:white">Planned HH</th>
+                <th style="text-align:center;padding:12px;font-weight:700;color:white">Actual HH</th>
+                <th style="text-align:center;padding:12px;font-weight:700;color:white">Coverage %</th>
+                <th style="text-align:center;padding:12px;font-weight:700;color:white">Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${communityRows}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      
+      <!-- Data Quality Alerts -->
+      <div style="margin-bottom:30px">
+        <h3 style="color:var(--navy);margin-bottom:16px;border-bottom:3px solid var(--navy);padding-bottom:8px">🚨 Data Quality Alerts</h3>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:16px;margin-top:20px">
+          
+          <div style="background:${metrics.duplicateHouseholds > 0 ? '#fee2e2' : '#d1fae5'};padding:16px;border-radius:8px;border-left:4px solid ${metrics.duplicateHouseholds > 0 ? 'var(--red)' : 'var(--green)'}">
+            <strong style="color:${metrics.duplicateHouseholds > 0 ? '#991b1b' : '#065f46'}">🏠 Duplicate Households:</strong> <span style="font-size:1.4rem;font-weight:800;margin-left:8px">${metrics.duplicateHouseholds}</span>
+          </div>
+          
+          <div style="background:#dbeafe;padding:16px;border-radius:8px;border-left:4px solid var(--blue)">
+            <strong style="color:#1e40af">👩 Total Mothers:</strong> <span style="font-size:1.4rem;font-weight:800;margin-left:8px">${metrics.totalMothers.toLocaleString()}</span>
+          </div>
+          
+          <div style="background:#dbeafe;padding:16px;border-radius:8px;border-left:4px solid var(--blue)">
+            <strong style="color:#1e40af">👶 Total Children:</strong> <span style="font-size:1.4rem;font-weight:800;margin-left:8px">${metrics.totalChildren.toLocaleString()}</span>
+          </div>
+          
+        </div>
+      </div>
+      
+      <!-- Detailed QC Issues Table -->
+      <div style="margin-bottom:30px">
+        <h3 style="color:var(--navy);margin-bottom:16px;border-bottom:3px solid var(--navy);padding-bottom:8px">
+          📋 Detailed QC Issues Table
+        </h3>
+        
+        <div style="background:#f8fafc;padding:12px;border-radius:8px;margin-bottom:16px;color:#64748b;font-size:0.9rem">
+          <strong>${qcIssuesCount} issues</strong> flagged across LGA, Ward, and Community - <em>Scroll horizontally to view all columns</em>
+        </div>
+        
+        <!-- Filter Section -->
+        <details open style="background:white;padding:16px;border-radius:8px;box-shadow:0 2px 8px rgba(0,0,0,0.08);margin-bottom:16px">
+          <summary style="cursor:pointer;font-weight:700;color:var(--navy);font-size:1rem;padding:8px;user-select:none">
+            🔍 Filter QC Issues (Optional)
+          </summary>
+          
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:16px;margin-top:16px">
+            
+            <div>
+              <label style="display:block;font-weight:600;color:#475569;margin-bottom:8px;font-size:0.9rem">Filter by LGA</label>
+              <select id="qcFilterLGA" style="width:100%;padding:10px;border:2px solid #e2e8f0;border-radius:6px;font-size:0.95rem;background:white" onchange="filterQCIssues()">
+                <option value="">Choose options</option>
+                ${lgaFilterOptions}
+              </select>
+            </div>
+            
+            <div>
+              <label style="display:block;font-weight:600;color:#475569;margin-bottom:8px;font-size:0.9rem">Filter by Issue Type</label>
+              <select id="qcFilterIssueType" style="width:100%;padding:10px;border:2px solid #e2e8f0;border-radius:6px;font-size:0.95rem;background:white" onchange="filterQCIssues()">
+                <option value="">Choose options</option>
+                ${issueTypeFilterOptions}
+              </select>
+            </div>
+            
+            <div>
+              <label style="display:block;font-weight:600;color:#475569;margin-bottom:8px;font-size:0.9rem">Filter by Validation Status</label>
+              <select id="qcFilterValidation" style="width:100%;padding:10px;border:2px solid #e2e8f0;border-radius:6px;font-size:0.95rem;background:white" onchange="filterQCIssues()">
+                <option value="">Choose options</option>
+                ${validationFilterOptions}
+              </select>
+            </div>
+            
+          </div>
+          
+          <div style="margin-top:16px;text-align:right">
+            <button onclick="clearQCFilters()" style="padding:8px 20px;background:#64748b;color:white;border:none;border-radius:6px;cursor:pointer;font-weight:600;font-size:0.9rem">
+              Clear Filters
+            </button>
+          </div>
+          
+        </details>
+        
+        <div id="qcIssuesCount" style="padding:12px;background:#eff6ff;border-left:4px solid var(--blue);border-radius:6px;margin-bottom:16px;font-weight:600;color:#1e40af">
+          Showing <span id="qcIssuesShown">${qcIssuesCount}</span> of <span id="qcIssuesTotal">${qcIssuesCount}</span> issues
+        </div>
+        
+        <!-- QC Issues Table -->
+        <div style="overflow-x:auto">
+          <table class="data-table" id="qcIssuesTable" style="width:100%">
+            <thead>
+              <tr style="background:var(--navy)">
+                <th style="text-align:left;padding:12px;font-weight:700;color:white">LGA</th>
+                <th style="text-align:left;padding:12px;font-weight:700;color:white">Ward</th>
+                <th style="text-align:left;padding:12px;font-weight:700;color:white">Community</th>
+                <th style="text-align:center;padding:12px;font-weight:700;color:white">Unique HH ID</th>
+                <th style="text-align:left;padding:12px;font-weight:700;color:white">Enumerator</th>
+                <th style="text-align:center;padding:12px;font-weight:700;color:white">Validation Status</th>
+                <th style="text-align:left;padding:12px;font-weight:700;color:white">Issue Type</th>
+              </tr>
+            </thead>
+            <tbody id="qcIssuesTableBody">
+              ${qcIssuesRows}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      
+    </div>
+  `;
+}
+
+// Global variable to store all QC issues for filtering
+let allQCIssues = [];
+
+function filterQCIssues() {
+  const lgaFilter = document.getElementById('qcFilterLGA').value.toLowerCase();
+  const issueTypeFilter = document.getElementById('qcFilterIssueType').value.toLowerCase();
+  const validationFilter = document.getElementById('qcFilterValidation').value.toLowerCase();
+  
+  const filteredIssues = allQCIssues.filter(issue => {
+    const matchLGA = !lgaFilter || issue.lga.toLowerCase().includes(lgaFilter);
+    const matchIssueType = !issueTypeFilter || issue.issueType.toLowerCase().includes(issueTypeFilter);
+    const matchValidation = !validationFilter || issue.validationStatus.toLowerCase().includes(validationFilter);
+    
+    return matchLGA && matchIssueType && matchValidation;
+  });
+  
+  // Update table
+  const tbody = document.getElementById('qcIssuesTableBody');
+  tbody.innerHTML = filteredIssues.map(issue => createQCIssueRow(issue)).join('');
+  
+  // Update count
+  document.getElementById('qcIssuesShown').textContent = filteredIssues.length;
+}
+
+function clearQCFilters() {
+  document.getElementById('qcFilterLGA').value = '';
+  document.getElementById('qcFilterIssueType').value = '';
+  document.getElementById('qcFilterValidation').value = '';
+  filterQCIssues();
+}
+
+function createQCIssueRow(issue) {
+  const statusColor = issue.validationStatus === 'Approved' ? 'var(--green)' : 
+                     issue.validationStatus === 'Not Approved' ? 'var(--red)' : 'var(--amber)';
+  const statusBg = issue.validationStatus === 'Approved' ? '#d1fae5' : 
+                   issue.validationStatus === 'Not Approved' ? '#fee2e2' : '#fef3c7';
+  
+  return `
+    <tr>
+      <td style="padding:10px">${issue.lga}</td>
+      <td style="padding:10px">${issue.ward}</td>
+      <td style="padding:10px">${issue.community}</td>
+      <td style="padding:10px;text-align:center;font-family:monospace;font-weight:600">${issue.householdId}</td>
+      <td style="padding:10px">${issue.enumerator}</td>
+      <td style="padding:10px;text-align:center">
+        <span style="display:inline-block;padding:4px 12px;border-radius:16px;font-size:0.75rem;font-weight:700;color:${statusColor};background:${statusBg}">
+          ${issue.validationStatus}
+        </span>
+      </td>
+      <td style="padding:10px">${issue.issueType}</td>
+    </tr>
+  `;
+}
+
+function updateQCMetrics(data) {
+  var el;
+  el = document.getElementById('qcTotalSubmissions'); if (el) el.textContent = (data.totalHouseholds || 0).toLocaleString();
+  el = document.getElementById('qcValidated');        if (el) el.textContent = (data.totalChildren   || 0).toLocaleString();
+  el = document.getElementById('qcPending');          if (el) el.textContent = (data.totalMothers    || 0).toLocaleString();
+  el = document.getElementById('qcIssues');           if (el) el.textContent = (data.qualityFlags    || 0);
+
+  el = document.getElementById('qcLgaTitle');
+  if (el) el.textContent = userRole === 'admin' ? '- All LGAs' : '- ' + currentUser;
+
+  el = document.getElementById('qcLoginUserInfo');
+  if (el) el.textContent = 'Logged in as: ' + (userRole === 'admin' ? 'Administrator' : currentUser + ' Coordinator');
+}
+
+// ═══════════════════════════════════════════════════════
+// INITIALIZE
+// ═══════════════════════════════════════════════════════
+checkAuth();
+</script>
+</body>
+</html>
