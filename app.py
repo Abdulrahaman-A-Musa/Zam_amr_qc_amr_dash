@@ -43,11 +43,13 @@ div[data-testid="metric-container"]{background:white;border-radius:10px;
 .banner{background:#eff6ff;border:1px solid #bfdbfe;border-left:4px solid #3b82f6;
   border-radius:8px;padding:10px 16px;margin-bottom:12px;font-size:.83rem;color:#1e40af;line-height:1.6}
 .mtx th{background:#0f2d5e;color:white;padding:8px 12px;text-align:center;
-  white-space:nowrap;font-size:.76rem}
-.mtx th:first-child{text-align:left}
+  white-space:nowrap;font-size:.76rem;position:sticky;top:0;z-index:2}
+.mtx th:first-child{text-align:left;position:sticky;left:0;z-index:3;background:#0f2d5e}
 .mtx td{padding:7px 12px;border-bottom:1px solid #e2e8f0;font-size:.79rem;text-align:center}
-.mtx td:first-child{text-align:left;font-weight:700}
+.mtx td:first-child{text-align:left;font-weight:700;position:sticky;left:0;z-index:1;
+  background:white;box-shadow:2px 0 4px rgba(0,0,0,.06)}
 .mtx tr:hover td{background:#f8fafc}
+.mtx tr:hover td:first-child{background:#f8fafc}
 </style>""", unsafe_allow_html=True)
 
 # ── CONSTANTS ──────────────────────────────────────────────
@@ -692,7 +694,9 @@ def compliance_matrix(data):
         tot_td = f'<td><strong>{count}/{len(dates)}</strong></td>' if len(dates)>1 else ''
         rows_html += f'<tr><td style="font-weight:700">{lga}</td>{cells}{tot_td}</tr>'
 
-    html = (f'<div style="overflow-x:auto"><table class="mtx">'
+    html = (f'<div style="max-height:420px;overflow:auto;border:1px solid #e2e8f0;'
+            f'border-radius:6px;position:relative">'
+            f'<table class="mtx" style="border-collapse:collapse;width:100%">'
             f'<thead><tr><th style="text-align:left">LGA</th>{th_date}{tot_th}</tr></thead>'
             f'<tbody>{rows_html}</tbody></table></div>')
     st.markdown(html, unsafe_allow_html=True)
@@ -921,8 +925,7 @@ def lc_supervisory_page():
     if st.session_state.user_role == 'admin':
         compliance_matrix(data)
         st.markdown('---')
-    c1, c2 = st.columns(2)
-    with c1: lc_charts(data)
+    lc_charts(data)
     lc_map(data)
     lc_tables(data)
 
@@ -1062,7 +1065,7 @@ def process_qc_metrics(data):
                 duplicates=duplicates)
 
 def qc_kpi_cards(m):
-    st.markdown('<span class="card-title">📊 Key Performance Indicators</span>', unsafe_allow_html=True)
+    st.markdown('<span class="card-title">Key Performance Indicators</span>', unsafe_allow_html=True)
     cols = st.columns(5)
     for col,(lbl,val,clr) in zip(cols,[
         ('Total Submissions', m['total'],   '#3b82f6'),
@@ -1081,7 +1084,7 @@ def qc_kpi_cards(m):
             </div>""", unsafe_allow_html=True)
 
 def qc_validation_cards(m):
-    st.markdown('<span class="card-title">✅ Validation Status</span>', unsafe_allow_html=True)
+    st.markdown('<span class="card-title">Validation Status</span>', unsafe_allow_html=True)
     cols = st.columns(3)
     items = [
         ('✓ APPROVED',   m['approved'], '#16a34a','#dcfce7','Ready for Analysis'),
@@ -1101,7 +1104,7 @@ def qc_validation_cards(m):
             </div>""", unsafe_allow_html=True)
 
 def qc_community_coverage(data):
-    st.markdown('<span class="card-title">🏘 Community Coverage Analysis</span>', unsafe_allow_html=True)
+    st.markdown('<span class="card-title">Community Coverage Analysis</span>', unsafe_allow_html=True)
     cov = {}
     for r in data:
         lga  = _gv(r,'Confirm your LGA','Q3. Local Government Area').strip()
@@ -1146,7 +1149,7 @@ def qc_community_coverage(data):
     st.dataframe(df_show, use_container_width=True, hide_index=True)
 
 def qc_issues_table(data):
-    st.markdown('<span class="card-title">🚨 Detailed QC Issues</span>', unsafe_allow_html=True)
+    st.markdown('<span class="card-title">Detailed QC Issues</span>', unsafe_allow_html=True)
     issues = []
     for r in data:
         lga   = _gv(r,'Confirm your LGA','Q3. Local Government Area')
@@ -1229,7 +1232,7 @@ def qc_issues_table(data):
 
 
 def qc_data_alerts(m):
-    st.markdown('<span class="card-title">⚠ Data Quality Alerts</span>', unsafe_allow_html=True)
+    st.markdown('<span class="card-title">Data Quality Alerts</span>', unsafe_allow_html=True)
     cols = st.columns(3)
     items = [
         ('Duplicate Households', m['duplicates'], '#ef4444', '#fee2e2',
