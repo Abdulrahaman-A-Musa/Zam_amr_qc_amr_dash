@@ -3,5 +3,5 @@ services:
     name: sarmaan-dashboard
     env: python
     buildCommand: pip install -r requirements.txt
-    startCommand: gunicorn app:app
+    startCommand: streamlit run app.py --server.port=$PORT --server.address=0.0.0.0 --server.headless=true
     plan: free
