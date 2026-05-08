@@ -3453,33 +3453,52 @@ function displayQCDataPreview(data, metrics) {
   let totalCommunities = Object.keys(communityCoverage).length;
   
   // First pass: Calculate planned HH and totals
+  // Only communities found in COMMUNITY_MAPPING count towards planned totals.
+  // Communities not in the mapping are shown as "Not in Plan" in the table.
   Object.values(communityCoverage).forEach(item => {
     const lookupKey = `${item.lga}|${item.ward}|${item.community}`;
-    const planned = COMMUNITY_MAPPING[lookupKey] || item.actualHH;
-    
-    // Debug logging (can be removed after verification)
-    if (!COMMUNITY_MAPPING[lookupKey]) {
-      console.log(`⚠️ Community not found in mapping: "${lookupKey}"`);
+    const mappedPlan = COMMUNITY_MAPPING[lookupKey];   // undefined if not in plan
+    item.inPlan   = mappedPlan !== undefined;
+    item.plannedHH = item.inPlan ? mappedPlan : null;
+
+    if (item.inPlan) {
+      totalPlannedHH += mappedPlan;
+      totalReachedHH += item.actualHH;
+      const coverage = mappedPlan > 0 ? ((item.actualHH / mappedPlan) * 100) : 0;
+      if (coverage >= 100) communitiesAtTarget++;
     }
-    
-    item.plannedHH = planned;
-    totalPlannedHH += planned;
-    totalReachedHH += item.actualHH;
-    
-    const coverage = planned > 0 ? ((item.actualHH / planned) * 100) : 0;
-    if (coverage >= 100) communitiesAtTarget++;
   });
-  
+
   // Generate community coverage table rows
   const communityRows = Object.values(communityCoverage)
     .sort((a, b) => a.lga.localeCompare(b.lga) || a.ward.localeCompare(b.ward))
     .map(item => {
-      const planned = item.plannedHH;
+      if (!item.inPlan) {
+        // Community exists in data but is not in the sampling frame
+        return `
+          <tr style="background:#f8fafc">
+            <td style="padding:10px;color:#64748b">${item.lga}</td>
+            <td style="padding:10px;color:#64748b">${item.ward}</td>
+            <td style="padding:10px;color:#64748b">${item.community}</td>
+            <td style="padding:10px;text-align:center;color:#94a3b8;font-style:italic">—</td>
+            <td style="padding:10px;text-align:center;font-weight:700;color:#64748b">${item.actualHH}</td>
+            <td style="padding:10px;text-align:center;color:#94a3b8;font-style:italic">—</td>
+            <td style="padding:10px;text-align:center">
+              <span style="display:inline-block;padding:4px 12px;border-radius:16px;font-size:0.75rem;
+                           font-weight:700;color:#64748b;background:#f1f5f9;border:2px solid #cbd5e1">
+                Not in Plan
+              </span>
+            </td>
+          </tr>
+        `;
+      }
+
+      const planned  = item.plannedHH;
       const coverage = planned > 0 ? ((item.actualHH / planned) * 100).toFixed(1) : 0;
-      const status = coverage >= 100 ? 'Complete' : coverage >= 80 ? 'On Track' : 'Behind';
+      const status      = coverage >= 100 ? 'Complete' : coverage >= 80 ? 'On Track' : 'Behind';
       const statusColor = coverage >= 100 ? 'var(--green)' : coverage >= 80 ? 'var(--amber)' : 'var(--red)';
-      const statusBg = coverage >= 100 ? '#d1fae5' : coverage >= 80 ? '#fef3c7' : '#fee2e2';
-      
+      const statusBg    = coverage >= 100 ? '#d1fae5'    : coverage >= 80 ? '#fef3c7'    : '#fee2e2';
+
       return `
         <tr style="background:${statusBg}">
           <td style="padding:10px">${item.lga}</td>
@@ -3489,7 +3508,8 @@ function displayQCDataPreview(data, metrics) {
           <td style="padding:10px;text-align:center;font-weight:700">${item.actualHH}</td>
           <td style="padding:10px;text-align:center;font-weight:700">${coverage}%</td>
           <td style="padding:10px;text-align:center">
-            <span style="display:inline-block;padding:4px 12px;border-radius:16px;font-size:0.75rem;font-weight:700;color:${statusColor};background:white;border:2px solid ${statusColor}">
+            <span style="display:inline-block;padding:4px 12px;border-radius:16px;font-size:0.75rem;
+                         font-weight:700;color:${statusColor};background:white;border:2px solid ${statusColor}">
               ${status === 'Complete' ? '✅' : status === 'On Track' ? '⏳' : '⚠️'} ${status}
             </span>
           </td>
