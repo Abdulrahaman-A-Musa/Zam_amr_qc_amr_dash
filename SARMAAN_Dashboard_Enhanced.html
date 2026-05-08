@@ -3311,16 +3311,28 @@ function displayQCDataPreview(data, metrics) {
     // Check for various QC issues
     const issues = [];
     
-    // Issue 1: Urban settlement with no basic amenities
-    const settlementType = record['Q7. Type of Settlement'] || '';
-    const hasElectricity = record['Q8. Electricity'] || '';
-    const hasWater = record['Q9. Water'] || '';
-    const hasToilet = record['Q10. Toilet'] || '';
-    
-    if (settlementType.toLowerCase().includes('urban') && 
-        (!hasElectricity || hasElectricity === 'No') && 
-        (!hasWater || hasWater === 'No') && 
-        (!hasToilet || hasToilet === 'No')) {
+    // Issue 1: Urban settlement with no basic amenities (Q18–Q32 all No)
+    const settlementType = record['Choose the settlement type'] ||
+                           record['Q7. Type of Settlement'] || '';
+    const urbanAssets = [
+      record['Q18. Does your household have a television?'],
+      record['Q19. Does your household have an electric iron?'],
+      record['Q20. Does your household have a fan?'],
+      record['Q21. Does your household have a refrigerator?'],
+      record['Q22. Does your household have electricity?'],
+      record['Q23. Does your household have a generator?'],
+      record['Q24. Does any member of the household have a bank account?'],
+      record['Q25. Does any member of the household have a watch?'],
+      record['Q26.Does your household have any of the following (Donkey,Camel,Cattle,Horse)?'],
+      record['Q27. Does your household have truck?'],
+      record['Q28. Does your household have bicycle?'],
+      record['Q29. Does your household have tricycle?'],
+      record['Q30. Does your household have computer?'],
+      record['Q31. Does your household have table?'],
+      record['Q32. Does your household have air condition?'],
+    ];
+    const allAssetsNo = urbanAssets.every(v => !v || String(v).toLowerCase() === 'no');
+    if (settlementType.toLowerCase().includes('urban') && allAssetsNo) {
       issues.push('Urban-No Basic Amenities');
     }
     
@@ -3359,8 +3371,11 @@ function displayQCDataPreview(data, metrics) {
     }
     
     // Issue 6: Education-Occupation Mismatch
-    const education = record['Q13. What is the highest level of school you attended?'] || '';
-    const occupation = record['Q15. What is your main occupation?'] || '';
+    const education = record['Q12. Was it Quranic or Western?\nMakarantar Islamiyya ko boko?'] ||
+                      record['Q12. Was it Quranic or Western?'] ||
+                      record['Q13. What is the highest level of school you attended?'] || '';
+    const occupation = record['Q15. Household head\'s occupation'] ||
+                       record['Q15. What is your main occupation?'] || '';
     if (education === 'No Formal Education' && occupation === 'Professional/technical/managerial') {
       issues.push('Education-Occupation Mismatch');
     }
@@ -3385,7 +3400,41 @@ function displayQCDataPreview(data, metrics) {
     if (azmReceived === 'Yes' || azmReceived === "Don't know" || azmReceived === "Don't Know") {
       issues.push('Azithromycin Received/Unknown');
     }
-    
+
+    // Issue 11: Q49/Q55 age-count mismatch
+    // Q49 says children 0-28 days exist, but Q55 (total <1 month) is 0
+    const q49Raw = record['Q49. How many children in the household are 0 - 28 days of age?'] ||
+                   record['Q49. How many children in the household are 0-28 days of age?'] || '';
+    const q55Raw = record['Q55. Total Number of Children less than 1 month'] ||
+                   record['Q55. Total number of children less than 1 month'] || '';
+    const q49Val = parseInt(q49Raw, 10);
+    const q55Val = parseInt(q55Raw, 10);
+    if (!isNaN(q49Val) && !isNaN(q55Val) && q49Val !== 0 && q55Val === 0) {
+      issues.push('Age-Count Mismatch (Q49≠0 & Q55=0)');
+    }
+
+    // Issue 12: Children with suspiciously close DOBs (<7 months apart, excluding twins)
+    const childDOBCols = Object.keys(record).filter(k => k.includes('Q62'));
+    const childDOBs = childDOBCols
+      .map(k => record[k])
+      .filter(v => v && String(v).trim() !== '')
+      .map(v => new Date(String(v).trim()))
+      .filter(d => !isNaN(d.getTime()));
+    if (childDOBs.length >= 2) {
+      childDOBs.sort((a, b) => a - b);
+      let hasClosePair = false;
+      outer: for (let ci = 0; ci < childDOBs.length - 1; ci++) {
+        for (let cj = ci + 1; cj < childDOBs.length; cj++) {
+          if (childDOBs[cj] > childDOBs[ci]) {
+            const monthsDiff = (childDOBs[cj].getFullYear() - childDOBs[ci].getFullYear()) * 12
+              + (childDOBs[cj].getMonth() - childDOBs[ci].getMonth());
+            if (monthsDiff < 7) { hasClosePair = true; break outer; }
+          }
+        }
+      }
+      if (hasClosePair) issues.push('Children with Close DOBs (<7 Months Apart)');
+    }
+
     // Add to issues array if any problems found
     if (issues.length > 0) {
       issues.forEach(issueType => {
