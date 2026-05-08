@@ -3435,7 +3435,7 @@ function displayQCDataPreview(data, metrics) {
     return key !== undefined ? rec[key] : undefined;
   };
 
-  // One-time debug: dump all column names + Q12/Q15/Q49/Q55 findings to console
+  // One-time debug: dump key column findings to console
   if (data.length > 0 && !window._qcColDebugDone) {
     window._qcColDebugDone = true;
     const r0 = data[0];
@@ -3445,8 +3445,18 @@ function displayQCDataPreview(data, metrics) {
       const col = cols.find(k => k.toUpperCase().includes(`Q${n}`));
       console.log(`[QC-DEBUG] Q${n} → col:"${col}" val:"${r0[col]}"`);
     });
-    const sc = cols.find(k => k.toLowerCase().includes('settlement'));
-    console.log(`[QC-DEBUG] Settlement → col:"${sc}" val:"${r0[sc]}"`);
+    // Q55 alternate search by topic keywords
+    const q55alt = cols.find(k => k.toLowerCase().includes('1 month') || k.toLowerCase().includes('less than 1') || k.toLowerCase().includes('neonat'));
+    console.log(`[QC-DEBUG] Q55-alt (1month/neonat) → col:"${q55alt}" val:"${r0[q55alt]}"`);
+    // Settlement type — needs "type" to avoid matching "Assigned settlement code"
+    const stCol = cols.find(k => k.toLowerCase().includes('settlement type') || (k.toLowerCase().includes('choose') && k.toLowerCase().includes('settlement')));
+    console.log(`[QC-DEBUG] Settlement-type → col:"${stCol}" val:"${r0[stCol]}"`);
+    // All columns containing "28 days"
+    const days28cols = cols.filter(k => k.toLowerCase().includes('28 day'));
+    console.log('[QC-DEBUG] Cols with "28 day":', days28cols, days28cols.map(c => r0[c]));
+    // All columns containing "month"
+    const monthCols = cols.filter(k => k.toLowerCase().includes('month') && !k.toLowerCase().includes('6 month') && !k.toLowerCase().includes('months'));
+    console.log('[QC-DEBUG] Cols with "month" (singular):', monthCols, monthCols.map(c => r0[c]));
   }
 
   data.forEach(record => {
@@ -3466,7 +3476,8 @@ function displayQCDataPreview(data, metrics) {
     // Issue 1: Urban settlement with no basic amenities (Q18–Q32 all No)
     const settlementType = String(
       getByKeyword(record, 'settlement type') ||
-      getByKeyword(record, 'settlement') || ''
+      getByKeyword(record, 'choose', 'settlement') ||
+      getByKeyword(record, 'type of settlement') || ''
     );
     const urbanAssets = [18,19,20,21,22,23,24,25,26,27,28,29,30,31,32]
       .map(n => getQVal(record, n));
@@ -3510,9 +3521,9 @@ function displayQCDataPreview(data, metrics) {
     }
     
     // Issue 6: Education-Occupation Mismatch
-    const education = String(getQVal(record, 12) ?? getQVal(record, 13) ?? '').trim();
-    const occupation = String(getQVal(record, 15) ?? '').trim();
-    if (education === 'No Formal Education' && occupation === 'Professional/technical/managerial') {
+    const education = String(getQVal(record, 12) ?? getQVal(record, 13) ?? '').trim().toLowerCase();
+    const occupation = String(getQVal(record, 15) ?? '').trim().toLowerCase();
+    if (education === 'no formal education' && occupation === 'professional/technical/managerial') {
       issues.push('Education and Occupation Issue');
     }
     
@@ -3539,8 +3550,15 @@ function displayQCDataPreview(data, metrics) {
 
     // Issue 11: Q49/Q55 age-count mismatch
     // Q49 says children 0-28 days exist, but Q55 (total <1 month) is 0
+    // Q55 has NO "Q55" in its column name in this export — search by topic keywords
     const q49Val = parseInt(getQVal(record, 49) ?? '', 10);
-    const q55Val = parseInt(getQVal(record, 55) ?? '', 10);
+    const q55Raw = getQVal(record, 55)
+      ?? getByKeyword(record, 'total', 'children', '1 month')
+      ?? getByKeyword(record, 'total', '1 month')
+      ?? getByKeyword(record, 'less than 1 month')
+      ?? getByKeyword(record, 'neonat')
+      ?? getByKeyword(record, 'total', 'children', 'month');
+    const q55Val = parseInt(q55Raw ?? '', 10);
     if (!isNaN(q49Val) && !isNaN(q55Val) && q49Val !== 0 && q55Val === 0) {
       issues.push('0-28 Days Mismatch');
     }
