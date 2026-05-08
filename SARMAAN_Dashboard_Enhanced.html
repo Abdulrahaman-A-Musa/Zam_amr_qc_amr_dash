@@ -170,13 +170,14 @@ main{padding:22px 28px;max-width:1700px;margin:0 auto}
 .chart-tall{height:340px}
 
 /* COMPLIANCE MATRIX */
-.matrix-wrap{overflow-x:auto}
+.matrix-wrap{max-height:420px;overflow:auto;border:1px solid var(--border);border-radius:6px}
 .matrix{width:100%;border-collapse:collapse;min-width:360px}
-.matrix th{background:var(--navy);color:#fff;padding:8px 12px;font-size:.76rem;text-align:center;white-space:nowrap}
-.matrix th:first-child{text-align:left}
+.matrix th{background:var(--navy);color:#fff;padding:8px 12px;font-size:.76rem;text-align:center;white-space:nowrap;position:sticky;top:0;z-index:2}
+.matrix th:first-child{text-align:left;position:sticky;left:0;z-index:3;background:var(--navy)}
 .matrix td{padding:7px 12px;border-bottom:1px solid var(--border);font-size:.79rem;text-align:center;vertical-align:middle}
-.matrix td:first-child{text-align:left;font-weight:700}
+.matrix td:first-child{text-align:left;font-weight:700;position:sticky;left:0;z-index:1;background:#fff;box-shadow:2px 0 4px rgba(0,0,0,.06)}
 .matrix tbody tr:hover td{background:#f8fafc}
+.matrix tbody tr:hover td:first-child{background:#f8fafc}
 .pill-ok{display:inline-block;background:#dcfce7;color:#15803d;border-radius:12px;padding:2px 10px;font-size:.7rem;font-weight:700}
 .pill-no{display:inline-block;background:#fee2e2;color:#b91c1c;border-radius:12px;padding:2px 10px;font-size:.7rem;font-weight:700}
 .btn-lga-dl{padding:3px 9px;border-radius:6px;border:1px solid #cbd5e1;background:#f8fafc;color:var(--muted);font-size:.7rem;cursor:pointer;transition:.15s;white-space:nowrap}
@@ -3504,7 +3505,7 @@ function displayQCDataPreview(data, metrics) {
       
       <!-- KPI Summary Cards -->
       <div style="margin-bottom:30px">
-        <h3 style="color:var(--navy);margin-bottom:16px;border-bottom:3px solid var(--navy);padding-bottom:8px">� Key Performance Indicators</h3>
+        <h3 style="color:var(--navy);margin-bottom:16px;border-bottom:3px solid var(--navy);padding-bottom:8px">Key Performance Indicators</h3>
         <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:16px;margin-top:20px">
           
           <div style="background:linear-gradient(135deg,#3b82f6,#2563eb);color:white;padding:20px;border-radius:12px;box-shadow:0 4px 12px rgba(59,130,246,0.3)">
@@ -3537,7 +3538,7 @@ function displayQCDataPreview(data, metrics) {
       
       <!-- Validation Status -->
       <div style="margin-bottom:30px">
-        <h3 style="color:var(--navy);margin-bottom:16px;border-bottom:3px solid var(--navy);padding-bottom:8px">✅ Validation Status</h3>
+        <h3 style="color:var(--navy);margin-bottom:16px;border-bottom:3px solid var(--navy);padding-bottom:8px">Validation Status</h3>
         <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;margin-top:20px">
           
           <div style="background:white;padding:20px;border-radius:12px;border-left:5px solid var(--green);box-shadow:0 2px 8px rgba(0,0,0,0.08)">
@@ -3563,9 +3564,7 @@ function displayQCDataPreview(data, metrics) {
       
       <!-- Community Coverage Analysis -->
       <div style="margin-bottom:30px">
-        <h3 style="color:var(--navy);margin-bottom:16px;border-bottom:3px solid var(--navy);padding-bottom:8px">
-          � Community Coverage Analysis
-        </h3>
+        <h3 style="color:var(--navy);margin-bottom:16px;border-bottom:3px solid var(--navy);padding-bottom:8px">Community Coverage Analysis</h3>
         
         <!-- Coverage Summary Cards -->
         <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;margin:20px 0">
@@ -3629,7 +3628,7 @@ function displayQCDataPreview(data, metrics) {
       
       <!-- Data Quality Alerts -->
       <div style="margin-bottom:30px">
-        <h3 style="color:var(--navy);margin-bottom:16px;border-bottom:3px solid var(--navy);padding-bottom:8px">🚨 Data Quality Alerts</h3>
+        <h3 style="color:var(--navy);margin-bottom:16px;border-bottom:3px solid var(--navy);padding-bottom:8px">Data Quality Alerts</h3>
         <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:16px;margin-top:20px">
           
           <div style="background:${metrics.duplicateHouseholds > 0 ? '#fee2e2' : '#d1fae5'};padding:16px;border-radius:8px;border-left:4px solid ${metrics.duplicateHouseholds > 0 ? 'var(--red)' : 'var(--green)'}">
@@ -3649,9 +3648,7 @@ function displayQCDataPreview(data, metrics) {
       
       <!-- Detailed QC Issues Table -->
       <div style="margin-bottom:30px">
-        <h3 style="color:var(--navy);margin-bottom:16px;border-bottom:3px solid var(--navy);padding-bottom:8px">
-          📋 Detailed QC Issues Table
-        </h3>
+        <h3 style="color:var(--navy);margin-bottom:16px;border-bottom:3px solid var(--navy);padding-bottom:8px">Detailed QC Issues Table</h3>
         
         <div style="background:#f8fafc;padding:12px;border-radius:8px;margin-bottom:16px;color:#64748b;font-size:0.9rem">
           <strong>${qcIssuesCount} issues</strong> flagged across LGA, Ward, and Community - <em>Scroll horizontally to view all columns</em>
