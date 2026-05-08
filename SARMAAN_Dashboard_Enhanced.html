@@ -398,7 +398,7 @@ footer{text-align:center;padding:18px 28px;color:var(--muted);font-size:.74rem;b
 }
 .btn-download-report:hover{transform:translateY(-2px);box-shadow:0 8px 20px rgba(15,45,94,.3)}
 
-/* RESPONSIVE */
+/* RESPONSIVE — tablet */
 @media(max-width:980px){
   .grid-2col,.grid-1-2{grid-template-columns:1fr}
   .ds-grid{grid-template-columns:1fr}
@@ -413,6 +413,77 @@ footer{text-align:center;padding:18px 28px;color:var(--muted);font-size:.74rem;b
   .info-cards{grid-template-columns:1fr}
   .timeline-item{flex-direction:column;gap:12px}
   .timeline-date{min-width:auto}
+  .kpi-strip{grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px}
+}
+
+/* RESPONSIVE — mobile */
+@media(max-width:600px){
+  :root{--radius:8px}
+  body{font-size:13px}
+
+  /* Header */
+  header{padding:10px 12px;gap:6px}
+  header h1{font-size:1rem}
+  .hdr-badge{font-size:.85rem;padding:4px 8px}
+  .header-pills{gap:4px}
+  .header-pills span{font-size:.67rem;padding:3px 8px}
+  .hdr-right{gap:4px}
+  .last-upd{font-size:.65rem}
+
+  /* Nav / toolbar */
+  main{padding:10px}
+  .toolbar{padding:10px 12px;gap:8px}
+  .btn-group{gap:4px}
+  .btn{padding:5px 10px;font-size:.72rem}
+  .select-filter{font-size:.72rem;padding:5px 8px}
+  .btn-dl-all{font-size:.72rem;padding:6px 12px}
+
+  /* KPI strip — 2 per row on mobile */
+  .kpi-strip{grid-template-columns:repeat(2,1fr);gap:8px;margin-bottom:14px}
+  .kpi{padding:12px 10px}
+  .kpi-value{font-size:1.5rem}
+  .kpi-label{font-size:.62rem}
+  .kpi-sub{font-size:.62rem}
+
+  /* Cards */
+  .card{padding:14px 12px;margin-bottom:14px}
+  .card-title{font-size:.8rem}
+
+  /* Grids always single column */
+  .grid-2col,.grid-1-2{grid-template-columns:1fr;gap:14px}
+
+  /* Charts */
+  .chart-wrap{height:200px}
+  .chart-tall{height:260px}
+
+  /* Tables — horizontal scroll */
+  .matrix-wrap{max-height:320px}
+  table{font-size:.72rem}
+  th,td{padding:5px 8px}
+
+  /* Data source panel */
+  .ds-panel{padding:12px 12px 16px}
+  .ds-grid{grid-template-columns:1fr}
+  .ds-actions{flex-direction:column;align-items:stretch}
+  .btn-fetch,.btn-save{width:100%;text-align:center}
+
+  /* Phase timeline — allow scroll */
+  .phase-timeline{padding:12px 10px;gap:4px}
+  .phase-step{min-width:60px}
+  .phase-label{font-size:.62rem}
+  .phase-dot{width:14px;height:14px}
+
+  /* Login card */
+  .login-card{padding:28px 20px}
+  .login-logo h1{font-size:1.5rem}
+
+  /* QC issue badges */
+  .issue-badge{font-size:.65rem;padding:2px 7px}
+
+  /* Report */
+  .report-folder{margin:10px 0;max-width:100%}
+  .folder-tab{padding:14px 12px 12px}
+  .folder-content{padding:14px 12px 18px}
 }
 </style>
 </head>
@@ -3297,6 +3368,21 @@ function displayQCDataPreview(data, metrics) {
   const issueTypes = new Set();
   const validationStatuses = new Set();
   
+  // Finds a record value by question-number prefix regardless of exact wording/punctuation
+  const getQVal = (rec, qNum) => {
+    const prefix = `Q${qNum}.`;
+    const key = Object.keys(rec).find(k => k.startsWith(prefix));
+    return key !== undefined ? rec[key] : undefined;
+  };
+
+  // Finds a record value by any substring of the column name (case-insensitive)
+  const getByKeyword = (rec, ...keywords) => {
+    const key = Object.keys(rec).find(k =>
+      keywords.every(w => k.toLowerCase().includes(w.toLowerCase()))
+    );
+    return key !== undefined ? rec[key] : undefined;
+  };
+
   data.forEach(record => {
     const lga = record['Confirm your LGA'] || record['Q3. Local Government Area'] || 'Unknown';
     const ward = record['Confirm your ward'] || record['Q4. Ward'] || 'Unknown';
@@ -3312,26 +3398,13 @@ function displayQCDataPreview(data, metrics) {
     const issues = [];
     
     // Issue 1: Urban settlement with no basic amenities (Q18–Q32 all No)
-    const settlementType = record['Choose the settlement type'] ||
-                           record['Q7. Type of Settlement'] || '';
-    const urbanAssets = [
-      record['Q18. Does your household have a television?'],
-      record['Q19. Does your household have an electric iron?'],
-      record['Q20. Does your household have a fan?'],
-      record['Q21. Does your household have a refrigerator?'],
-      record['Q22. Does your household have electricity?'],
-      record['Q23. Does your household have a generator?'],
-      record['Q24. Does any member of the household have a bank account?'],
-      record['Q25. Does any member of the household have a watch?'],
-      record['Q26.Does your household have any of the following (Donkey,Camel,Cattle,Horse)?'],
-      record['Q27. Does your household have truck?'],
-      record['Q28. Does your household have bicycle?'],
-      record['Q29. Does your household have tricycle?'],
-      record['Q30. Does your household have computer?'],
-      record['Q31. Does your household have table?'],
-      record['Q32. Does your household have air condition?'],
-    ];
-    const allAssetsNo = urbanAssets.every(v => !v || String(v).toLowerCase() === 'no');
+    const settlementType = String(
+      getByKeyword(record, 'settlement type') ||
+      getByKeyword(record, 'settlement') || ''
+    );
+    const urbanAssets = [18,19,20,21,22,23,24,25,26,27,28,29,30,31,32]
+      .map(n => getQVal(record, n));
+    const allAssetsNo = urbanAssets.every(v => v === undefined || !v || String(v).toLowerCase().trim() === 'no');
     if (settlementType.toLowerCase().includes('urban') && allAssetsNo) {
       issues.push('Urban-No Basic Amenities');
     }
@@ -3371,13 +3444,10 @@ function displayQCDataPreview(data, metrics) {
     }
     
     // Issue 6: Education-Occupation Mismatch
-    const education = record['Q12. Was it Quranic or Western?\nMakarantar Islamiyya ko boko?'] ||
-                      record['Q12. Was it Quranic or Western?'] ||
-                      record['Q13. What is the highest level of school you attended?'] || '';
-    const occupation = record['Q15. Household head\'s occupation'] ||
-                       record['Q15. What is your main occupation?'] || '';
+    const education = String(getQVal(record, 12) ?? getQVal(record, 13) ?? '').trim();
+    const occupation = String(getQVal(record, 15) ?? '').trim();
     if (education === 'No Formal Education' && occupation === 'Professional/technical/managerial') {
-      issues.push('Education-Occupation Mismatch');
+      issues.push('Education and Occupation Issue');
     }
     
     // Issue 7: Incorrect phone date/time
@@ -3403,14 +3473,10 @@ function displayQCDataPreview(data, metrics) {
 
     // Issue 11: Q49/Q55 age-count mismatch
     // Q49 says children 0-28 days exist, but Q55 (total <1 month) is 0
-    const q49Raw = record['Q49. How many children in the household are 0 - 28 days of age?'] ||
-                   record['Q49. How many children in the household are 0-28 days of age?'] || '';
-    const q55Raw = record['Q55. Total Number of Children less than 1 month'] ||
-                   record['Q55. Total number of children less than 1 month'] || '';
-    const q49Val = parseInt(q49Raw, 10);
-    const q55Val = parseInt(q55Raw, 10);
+    const q49Val = parseInt(getQVal(record, 49) ?? '', 10);
+    const q55Val = parseInt(getQVal(record, 55) ?? '', 10);
     if (!isNaN(q49Val) && !isNaN(q55Val) && q49Val !== 0 && q55Val === 0) {
-      issues.push('Age-Count Mismatch (Q49≠0 & Q55=0)');
+      issues.push('0-28 Days Mismatch');
     }
 
     // Issue 12: Children with suspiciously close DOBs (<7 months apart, excluding twins)
