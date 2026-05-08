@@ -509,7 +509,28 @@ footer{text-align:center;padding:18px 28px;color:var(--muted);font-size:.74rem;b
     font-size:.82rem!important;padding:8px!important;
   }
 
-  /* Data tables in QC */
+  /* QC Issues Table — card-flip layout on mobile */
+  #qcIssuesTable{border:0!important;min-width:unset!important}
+  #qcIssuesTable thead{display:none}
+  #qcIssuesTable tr{
+    display:block;margin-bottom:12px;
+    border:1px solid var(--border);border-radius:8px;
+    overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,.06);
+    background:#fff;
+  }
+  #qcIssuesTable td{
+    display:flex!important;justify-content:space-between;align-items:flex-start;
+    padding:8px 12px!important;font-size:.78rem!important;
+    border-bottom:1px solid #f1f5f9;text-align:left!important;
+  }
+  #qcIssuesTable td:last-child{border-bottom:0}
+  #qcIssuesTable td::before{
+    content:attr(data-label);
+    font-weight:700;color:var(--muted);font-size:.68rem;
+    text-transform:uppercase;letter-spacing:.4px;
+    flex-shrink:0;min-width:90px;margin-right:8px;padding-top:1px;
+  }
+  /* Other data tables */
   .data-table th,.data-table td{padding:6px 8px!important;font-size:.72rem!important}
 
   /* Info cards in modal */
@@ -3520,8 +3541,8 @@ function displayQCDataPreview(data, metrics) {
       issues.push('Validation Rejected');
     }
     
-    // Issue 6: Education-Occupation Mismatch
-    const education = String(getQVal(record, 12) ?? getQVal(record, 13) ?? '').trim().toLowerCase();
+    // Issue 6: Education-Occupation Mismatch (Q13 = education level, Q15 = occupation)
+    const education = String(getQVal(record, 13) ?? '').trim().toLowerCase();
     const occupation = String(getQVal(record, 15) ?? '').trim().toLowerCase();
     if (education === 'no formal education' && occupation === 'professional/technical/managerial') {
       issues.push('Education and Occupation Issue');
@@ -3549,15 +3570,12 @@ function displayQCDataPreview(data, metrics) {
     }
 
     // Issue 11: Q49/Q55 age-count mismatch
-    // Q49 says children 0-28 days exist, but Q55 (total <1 month) is 0
-    // Q55 has NO "Q55" in its column name in this export — search by topic keywords
+    // Q49 says children 0-28 days exist, but sum_mother_neonates (Q55 equivalent) is 0
     const q49Val = parseInt(getQVal(record, 49) ?? '', 10);
-    const q55Raw = getQVal(record, 55)
-      ?? getByKeyword(record, 'total', 'children', '1 month')
-      ?? getByKeyword(record, 'total', '1 month')
-      ?? getByKeyword(record, 'less than 1 month')
+    const q55Raw = record['sum_mother_neonates']
+      ?? getQVal(record, 55)
       ?? getByKeyword(record, 'neonat')
-      ?? getByKeyword(record, 'total', 'children', 'month');
+      ?? getByKeyword(record, 'total', '1 month');
     const q55Val = parseInt(q55Raw ?? '', 10);
     if (!isNaN(q49Val) && !isNaN(q55Val) && q49Val !== 0 && q55Val === 0) {
       issues.push('0-28 Days Mismatch');
@@ -3981,17 +3999,17 @@ function createQCIssueRow(issue) {
   
   return `
     <tr>
-      <td style="padding:10px">${issue.lga}</td>
-      <td style="padding:10px">${issue.ward}</td>
-      <td style="padding:10px">${issue.community}</td>
-      <td style="padding:10px;text-align:center;font-family:monospace;font-weight:600">${issue.householdId}</td>
-      <td style="padding:10px">${issue.enumerator}</td>
-      <td style="padding:10px;text-align:center">
+      <td data-label="LGA" style="padding:10px">${issue.lga}</td>
+      <td data-label="Ward" style="padding:10px">${issue.ward}</td>
+      <td data-label="Community" style="padding:10px">${issue.community}</td>
+      <td data-label="HH ID" style="padding:10px;text-align:center;font-family:monospace;font-weight:600">${issue.householdId}</td>
+      <td data-label="Enumerator" style="padding:10px">${issue.enumerator}</td>
+      <td data-label="Status" style="padding:10px;text-align:center">
         <span style="display:inline-block;padding:4px 12px;border-radius:16px;font-size:0.75rem;font-weight:700;color:${statusColor};background:${statusBg}">
           ${issue.validationStatus}
         </span>
       </td>
-      <td style="padding:10px">${issue.issueType}</td>
+      <td data-label="Issue" style="padding:10px">${issue.issueType}</td>
     </tr>
   `;
 }
