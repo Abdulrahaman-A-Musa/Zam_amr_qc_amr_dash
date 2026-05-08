@@ -484,6 +484,48 @@ footer{text-align:center;padding:18px 28px;color:var(--muted);font-size:.74rem;b
   .report-folder{margin:10px 0;max-width:100%}
   .folder-tab{padding:14px 12px 12px}
   .folder-content{padding:14px 12px 18px}
+
+  /* QC Dashboard — metrics grid */
+  .qc-metrics{grid-template-columns:repeat(2,1fr)!important;gap:8px!important;margin-bottom:14px!important}
+  .qc-metric-card{padding:12px!important}
+  .qc-metric-value{font-size:1.7rem!important}
+  .qc-metric-label{font-size:.65rem!important}
+
+  /* Project selector tabs */
+  .project-tabs{flex-direction:column;gap:4px;padding:6px}
+  .project-tab{padding:10px 14px;font-size:.82rem}
+
+  /* QC page main */
+  #qcDashboard main{padding:10px}
+  #qcDashboard .card{padding:12px 10px}
+
+  /* QC KPI/section cards — inline grid override for auto-fit grids */
+  #qcDataPreview [style*="grid-template-columns"]{
+    grid-template-columns:1fr!important;
+  }
+
+  /* QC filter section selects */
+  #qcFilterLGA,#qcFilterIssueType,#qcFilterValidation{
+    font-size:.82rem!important;padding:8px!important;
+  }
+
+  /* Data tables in QC */
+  .data-table th,.data-table td{padding:6px 8px!important;font-size:.72rem!important}
+
+  /* Info cards in modal */
+  .info-cards{grid-template-columns:repeat(2,1fr)!important;gap:8px!important}
+  .info-card{padding:10px!important}
+  .info-card-value{font-size:1.2rem!important}
+
+  /* Timeline items in modal */
+  .timeline-item{flex-direction:column;gap:8px;padding:10px}
+  .timeline-date{min-width:auto;display:flex;gap:8px;align-items:center}
+  .timeline-date .day{font-size:1rem}
+
+  /* Activity stats */
+  .activity-stats{grid-template-columns:repeat(2,1fr)!important;gap:6px!important}
+  .activity-stat{padding:8px!important}
+  .activity-stat-value{font-size:1rem!important}
 }
 </style>
 </head>
@@ -3368,20 +3410,44 @@ function displayQCDataPreview(data, metrics) {
   const issueTypes = new Set();
   const validationStatuses = new Set();
   
-  // Finds a record value by question-number prefix regardless of exact wording/punctuation
+  // Finds a record value by question-number — tries multiple prefix/case formats
   const getQVal = (rec, qNum) => {
-    const prefix = `Q${qNum}.`;
-    const key = Object.keys(rec).find(k => k.startsWith(prefix));
+    const keys = Object.keys(rec);
+    // 1. Exact "Q{n}." prefix
+    let key = keys.find(k => k.startsWith(`Q${qNum}.`));
+    if (key !== undefined) return rec[key];
+    // 2. Lowercase "q{n}."
+    key = keys.find(k => k.startsWith(`q${qNum}.`));
+    if (key !== undefined) return rec[key];
+    // 3. Any key containing "Q{n}" as a whole token (e.g. "Q49 " or "Q49/")
+    key = keys.find(k => {
+      const u = k.toUpperCase();
+      return u.includes(`Q${qNum} `) || u.includes(`Q${qNum}.`) || u.includes(`Q${qNum}/`);
+    });
     return key !== undefined ? rec[key] : undefined;
   };
 
-  // Finds a record value by any substring of the column name (case-insensitive)
+  // Finds a record value by keywords — all must appear (case-insensitive)
   const getByKeyword = (rec, ...keywords) => {
     const key = Object.keys(rec).find(k =>
       keywords.every(w => k.toLowerCase().includes(w.toLowerCase()))
     );
     return key !== undefined ? rec[key] : undefined;
   };
+
+  // One-time debug: dump all column names + Q12/Q15/Q49/Q55 findings to console
+  if (data.length > 0 && !window._qcColDebugDone) {
+    window._qcColDebugDone = true;
+    const r0 = data[0];
+    const cols = Object.keys(r0);
+    console.log('[QC-DEBUG] Total columns:', cols.length, cols);
+    [12, 15, 49, 55].forEach(n => {
+      const col = cols.find(k => k.toUpperCase().includes(`Q${n}`));
+      console.log(`[QC-DEBUG] Q${n} → col:"${col}" val:"${r0[col]}"`);
+    });
+    const sc = cols.find(k => k.toLowerCase().includes('settlement'));
+    console.log(`[QC-DEBUG] Settlement → col:"${sc}" val:"${r0[sc]}"`);
+  }
 
   data.forEach(record => {
     const lga = record['Confirm your LGA'] || record['Q3. Local Government Area'] || 'Unknown';
