@@ -3338,8 +3338,16 @@ async function fetchQCData(silent) {
 }
 
 function processQCData(data) {
+  // Filter to the logged-in LGA for non-admin users
+  if (userRole === 'lga' && currentUser) {
+    data = data.filter(function(record) {
+      const lga = String(record['Confirm your LGA'] || record['Q3. Local Government Area'] || '').trim();
+      return normalizeLGA(lga).toLowerCase() === currentUser.toLowerCase();
+    });
+  }
+
   console.log('Processing QC data:', data.length, 'records');
-  
+
   // Calculate comprehensive metrics
   const totalHouseholds = data.length;
   const lgas = new Set();
