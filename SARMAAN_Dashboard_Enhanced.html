@@ -3591,18 +3591,6 @@ function displayQCDataPreview(data, metrics) {
       issues.push('Azithromycin Received/Unknown');
     }
 
-    // Issue 11: Q49/Q55 age-count mismatch
-    // Q49 says children 0-28 days exist, but sum_mother_neonates (Q55 equivalent) is 0
-    const q49Val = parseInt(getQVal(record, 49) ?? '', 10);
-    const q55Raw = record['sum_mother_neonates']
-      ?? getQVal(record, 55)
-      ?? getByKeyword(record, 'neonat')
-      ?? getByKeyword(record, 'total', '1 month');
-    const q55Val = parseInt(q55Raw ?? '', 10);
-    if (!isNaN(q49Val) && !isNaN(q55Val) && q49Val !== 0 && q55Val === 0) {
-      issues.push('0-28 Days Mismatch');
-    }
-
     // Issue 12: Children with suspiciously close DOBs (<7 months apart, excluding twins)
     const childDOBCols = Object.keys(record).filter(k => k.includes('Q62'));
     const childDOBs = childDOBCols
